@@ -31,26 +31,33 @@ Responda só JSON neste formato:
 Regras:
 - Entre só frase com fato checável: número, data, obra, lei, cargo, comparação quantitativa.
 - speaker=lula apenas quando o trecho deixa claro que quem afirma é Luiz Inácio Lula da Silva. Se a autoria estiver ambígua, use incerto.
+- Reescreva a claim com sujeito, verbo e número/periodo claros. Exemplo ruim: "fiz creches". Exemplo bom: "o governo Lula entregou 10 creches no Brasil".
 - Não invente frase que não esteja no trecho.
 - Ignore opinião, ataque pessoal e pergunta de mediador.
 - Se não houver afirmação checável, devolva {"claims":[]}."""
 
-VERIFY_SYSTEM = """Você checa uma afirmação pública atribuída a Lula no debate presidencial de 18/10/2026.
+VERIFY_SYSTEM = """Você é um checador de fatos para o debate presidencial brasileiro de 18/10/2026.
 """ + DEBATE_RULES + """
-Faça mais de uma busca se a primeira for vaga. Procure o número, o período e a definição (por exemplo o que conta como creche).
+Use a busca na web. Faça buscas adicionais se a primeira for vaga: número + período + definição do termo.
 Responda só JSON:
 {"status":"sustentado|contradito|exagerado|sem_evidencia|inconclusivo","confidence":0.4,"summary":"até 500 caracteres","missing":"o que impediu cravar, ou vazio","sources":[{"title":"nome da página","url":"https://...","note":"o que a página mostra"}]}
 
 Regras:
-- status sustentado: a fonte publicamente acessível apoia o núcleo da frase, no recorte de tempo e lugar certos.
-- status contradito: a fonte publicamente acessível mostra que o núcleo da frase não se sustenta.
-- status exagerado: a direção pode estar certa, mas o número, o prazo ou o recorte está maior do que a fonte mostra.
+- status sustentado: pelo menos uma fonte https pública apoia o núcleo da frase no recorte certo de tempo e lugar.
+- status contradito: fonte https pública mostra que o núcleo não se sustenta.
+- status exagerado: a direção pode estar certa, mas número, prazo ou recorte está maior do que a fonte.
 - status sem_evidencia: a busca não achou fonte suficiente. Não chute.
-- status inconclusivo: as fontes divergem ou a frase depende de definição (qual governo, qual município, o que conta como creche).
-- Toda url tem de ser https e tem de ter aparecido na busca. Não invente url.
-- Prefira IBGE, INEP, Portal da Transparência, gov.br, TSE e séries oficiais. Agência de checagem entra como fonte secundária e deve ser nomeada.
+- status inconclusivo: fontes divergem ou a frase depende de definição (qual governo, município, o que conta como creche).
+- Prefira IBGE, INEP, Portal da Transparência, gov.br, TSE, Senado, Câmara e séries oficiais. Agência de checagem (Lupa, Aos Fatos, Estadão Verifica) é secundária e deve ser nomeada.
+- Toda url tem de ser https e tem de ter saído da busca ou das citações. Não invente url.
+- Se a frase não diz o período, registre em missing e não marque sustentado só porque um número parecido existe em outro ano.
 - Não use a palavra fake. Não escreva texto de campanha.
-- Se a frase não diz o período, registre isso em missing e não marque sustentado só porque algum número parecido existe em outro ano."""
+- confidence alto (>=0.7) só com fonte oficial ou duas fontes independentes apontando o mesmo sentido."""
+
+SEARCH_BRIEF_SYSTEM = """Você pesquisa fontes públicas sobre uma afirmação atribuída a Lula no debate de 18/10/2026.
+Responda só JSON:
+{"findings":"resumo factual em até 700 caracteres","queries":["busca1","busca2"],"sources":[{"title":"nome","url":"https://...","note":"o que a página diz"}]}
+Não invente url. Prefira fontes oficiais brasileiras."""
 
 
 def parse_json(raw: str) -> dict:
@@ -95,17 +102,18 @@ def sanitize_verdict(payload: dict) -> dict:
     except (TypeError, ValueError):
         confidence = 0.0
     confidence = max(0.0, min(1.0, confidence))
+    if status in NEEDS_SOURCE and len(sources) < 2 and confidence > 0.65:
+        confidence = 0.65
     return {
         "status": status,
         "confidence": confidence,
         "summary": str(payload.get("summary") or "")[:800],
         "missing": str(payload.get("missing") or "")[:400],
-        "sources": sources[:5],
+        "sources": sources[:8],
     }
 
 
 def _headers() -> dict:
-    # Auth conforme https://openrouter.ai/docs/api-reference/authentication
     return {
         "Authorization": f"Bearer {settings.openrouter_key}",
         "Content-Type": "application/json",
@@ -125,7 +133,13 @@ def _openrouter_error(status: int, model: str, detail: str) -> RuntimeError:
     return RuntimeError(f"OpenRouter {status} no modelo {model}: {text}")
 
 
-def chat_completion(model: str, system: str, user: str, timeout: float) -> dict:
+def chat_completion(
+    model: str,
+    system: str,
+    user: str,
+    timeout: float,
+    plugins: list[dict] | None = None,
+) -> dict:
     if not settings.openrouter_key:
         raise RuntimeError("OPENROUTER_API_KEY ausente")
     if not settings.openrouter_key.startswith("sk-or-"):
@@ -133,7 +147,7 @@ def chat_completion(model: str, system: str, user: str, timeout: float) -> dict:
             "OPENROUTER_API_KEY inválida: use a chave do OpenRouter (sk-or-v1-...), "
             "não a chave do site da Perplexity (pplx-...)."
         )
-    body = {
+    body: dict = {
         "model": model,
         "temperature": 0.1,
         "messages": [
@@ -141,6 +155,8 @@ def chat_completion(model: str, system: str, user: str, timeout: float) -> dict:
             {"role": "user", "content": user},
         ],
     }
+    if plugins:
+        body["plugins"] = plugins
     with httpx.Client(timeout=timeout) as client:
         response = client.post(
             "https://openrouter.ai/api/v1/chat/completions",
@@ -169,39 +185,85 @@ def message_text(payload: dict) -> str:
     return str(content)
 
 
-def chat_json(model: str, system: str, user: str, timeout: float) -> dict:
-    return parse_json(message_text(chat_completion(model, system, user, timeout)))
+def chat_json(
+    model: str,
+    system: str,
+    user: str,
+    timeout: float,
+    plugins: list[dict] | None = None,
+) -> dict:
+    return parse_json(
+        message_text(chat_completion(model, system, user, timeout, plugins=plugins))
+    )
 
 
-def citation_urls(payload: dict) -> list[str]:
+def citation_sources(payload: dict) -> list[dict]:
     found = []
     for item in payload.get("citations") or []:
-        if isinstance(item, str):
-            found.append(item)
+        if isinstance(item, str) and item.startswith("https://"):
+            found.append({"title": item, "url": item, "note": "citação da busca"})
         elif isinstance(item, dict):
-            found.append(str(item.get("url") or ""))
+            url = str(item.get("url") or "").strip()
+            if url.startswith("https://"):
+                found.append(
+                    {
+                        "title": str(item.get("title") or url)[:180],
+                        "url": url,
+                        "note": str(item.get("note") or item.get("content") or "")[:300],
+                    }
+                )
     message = ((payload.get("choices") or [{}])[0].get("message") or {})
     for note in message.get("annotations") or []:
         if not isinstance(note, dict):
             continue
         cite = note.get("url_citation") or note
-        if isinstance(cite, dict):
-            found.append(str(cite.get("url") or ""))
+        if not isinstance(cite, dict):
+            continue
+        url = str(cite.get("url") or "").strip()
+        if not url.startswith("https://"):
+            continue
+        found.append(
+            {
+                "title": str(cite.get("title") or url)[:180],
+                "url": url,
+                "note": str(cite.get("content") or "")[:300],
+            }
+        )
     return found
 
 
-def attach_citations(data: dict, urls: list[str]) -> dict:
+def attach_citations(data: dict, extra: list[dict]) -> dict:
     sources = [item for item in (data.get("sources") or []) if isinstance(item, dict)]
     known = {str(item.get("url") or "").strip() for item in sources}
-    for url in urls:
-        clean = str(url or "").strip()
-        if not clean.startswith("https://") or clean in known:
+    for item in extra:
+        url = str(item.get("url") or "").strip()
+        if not url.startswith("https://") or url in known:
             continue
-        sources.append({"title": clean, "url": clean, "note": "página usada na busca"})
-        known.add(clean)
+        sources.append(
+            {
+                "title": str(item.get("title") or url)[:180],
+                "url": url[:500],
+                "note": str(item.get("note") or "")[:300],
+            }
+        )
+        known.add(url)
     merged = dict(data)
     merged["sources"] = sources
     return merged
+
+
+def web_plugins() -> list[dict]:
+    return [
+        {
+            "id": "web",
+            "engine": "perplexity",
+            "max_results": 8,
+            "search_prompt": (
+                "Resultados de busca em {date}. Priorize fontes oficiais brasileiras "
+                "(gov.br, IBGE, INEP, TSE, Portal da Transparência) e cite com links https."
+            ),
+        }
+    ]
 
 
 def extract_claims(transcript: str) -> list[dict]:
@@ -226,12 +288,43 @@ def extract_claims(transcript: str) -> list[dict]:
     return found[:4]
 
 
+def _search_brief(quote: str, claim: str) -> dict:
+    try:
+        payload = chat_completion(
+            settings.search_model,
+            SEARCH_BRIEF_SYSTEM,
+            f"Frase ouvida:\n{quote}\n\nAfirmação:\n{claim}",
+            timeout=90,
+        )
+        data = attach_citations(
+            parse_json(message_text(payload)), citation_sources(payload)
+        )
+        return {
+            "findings": str(data.get("findings") or "")[:900],
+            "sources": data.get("sources") or [],
+            "raw": message_text(payload)[:2500],
+        }
+    except Exception:
+        return {"findings": "", "sources": [], "raw": ""}
+
+
 def verify_claim(quote: str, claim: str) -> dict:
+    brief = _search_brief(quote, claim)
+    brief_block = ""
+    if brief["findings"] or brief["sources"]:
+        brief_block = (
+            "\n\nPesquisa prévia (Sonar Pro Search):\n"
+            + (brief["findings"] or brief["raw"] or "(sem resumo)")
+            + "\nFontes já vistas:\n"
+            + json.dumps(brief["sources"][:8], ensure_ascii=False)
+        )
     payload = chat_completion(
         settings.fact_model,
         VERIFY_SYSTEM,
-        f"Frase ouvida:\n{quote}\n\nAfirmação a checar:\n{claim}",
-        timeout=90,
+        f"Frase ouvida:\n{quote}\n\nAfirmação a checar:\n{claim}{brief_block}",
+        timeout=120,
+        plugins=web_plugins(),
     )
-    data = attach_citations(parse_json(message_text(payload)), citation_urls(payload))
+    data = attach_citations(parse_json(message_text(payload)), citation_sources(payload))
+    data = attach_citations(data, brief["sources"])
     return sanitize_verdict(data)

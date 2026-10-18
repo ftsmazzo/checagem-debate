@@ -1,6 +1,6 @@
 import unittest
 
-from app.factcheck import attach_citations, citation_urls, parse_json, sanitize_verdict
+from app.factcheck import attach_citations, citation_sources, parse_json, sanitize_verdict
 from app.listener import explain_audio_error, resolve_stream, youtube_cookie_text
 
 
@@ -20,7 +20,7 @@ class VerdictTests(unittest.TestCase):
             }
         )
         self.assertEqual(verdict["status"], "sustentado")
-        self.assertEqual(verdict["confidence"], 1.0)
+        self.assertEqual(verdict["confidence"], 0.65)
         self.assertEqual(verdict["sources"][0]["title"], "IBGE")
 
     def test_http_nao_conta(self):
@@ -45,7 +45,7 @@ class VerdictTests(unittest.TestCase):
         verdict = sanitize_verdict(
             attach_citations(
                 {"status": "sustentado", "confidence": 0.7, "sources": []},
-                citation_urls(payload),
+                citation_sources(payload),
             )
         )
         self.assertEqual(verdict["status"], "sustentado")

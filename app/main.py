@@ -8,9 +8,9 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
-from app.db import Claim, RunState, Segment, claim_dict, init_db, ping, session
+from app.db import Claim, RunState, Segment, claim_dict, init_db, ping, session, utcnow
 from app.listener import (
     PRESETS,
     cookies_loaded,
@@ -162,6 +162,23 @@ def checar(body: ManualBody, request: Request) -> dict:
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"id": claim_id}
+
+
+@app.post("/api/zerar")
+def zerar(request: Request) -> dict:
+    authorized(request)
+    get_listener().halt()
+    with session() as db:
+        db.execute(delete(Claim))
+        db.execute(delete(Segment))
+        state = db.get(RunState, 1)
+        if state:
+            state.running = 0
+            state.last_error = ""
+            state.youtube_url = settings.youtube_default
+            state.updated_at = state.updated_at
+        db.commit()
+    return {"ok": True}
 
 
 @app.get("/")

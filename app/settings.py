@@ -46,13 +46,19 @@ class Settings:
     @property
     def extract_model(self) -> str:
         return os.environ.get(
-            "OPENROUTER_EXTRACT_MODEL", "anthropic/claude-haiku-4.5"
+            "OPENROUTER_EXTRACT_MODEL", "anthropic/claude-sonnet-4.6"
+        ).strip()
+
+    @property
+    def search_model(self) -> str:
+        return os.environ.get(
+            "OPENROUTER_SEARCH_MODEL", "perplexity/sonar-pro-search"
         ).strip()
 
     @property
     def fact_model(self) -> str:
         return os.environ.get(
-            "OPENROUTER_FACT_MODEL", "perplexity/sonar"
+            "OPENROUTER_FACT_MODEL", "anthropic/claude-sonnet-4.6"
         ).strip()
 
     @property

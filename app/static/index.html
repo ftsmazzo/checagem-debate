@@ -96,6 +96,7 @@
         <input id="url" type="url" required>
         <button type="submit">Ouvir a live</button>
         <button id="stop" class="ghost" type="button">Parar</button>
+        <button id="reset" class="ghost" type="button">Zerar tudo</button>
         <span id="status" class="meta"></span>
       </form>
       <p id="error" class="error"></p>
@@ -196,6 +197,13 @@
 
     document.querySelector("#stop").addEventListener("click", async () => {
       await api("/api/parar", { method: "POST" });
+      await refresh();
+    });
+
+    document.querySelector("#reset").addEventListener("click", async () => {
+      if (!window.confirm("Apagar toda a transcrição e as checagens deste debate?")) return;
+      marked.clear();
+      await api("/api/zerar", { method: "POST" });
       await refresh();
     });
 
