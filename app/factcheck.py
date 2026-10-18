@@ -105,6 +105,7 @@ def sanitize_verdict(payload: dict) -> dict:
 
 
 def _headers() -> dict:
+    # Auth conforme https://openrouter.ai/docs/api-reference/authentication
     return {
         "Authorization": f"Bearer {settings.openrouter_key}",
         "Content-Type": "application/json",
@@ -113,9 +114,25 @@ def _headers() -> dict:
     }
 
 
+def _openrouter_error(status: int, model: str, detail: str) -> RuntimeError:
+    text = detail or "falha na chamada"
+    if status == 401 or "user not found" in text.lower():
+        return RuntimeError(
+            "A chave OPENROUTER_API_KEY no servidor está inválida, expirada ou revogada. "
+            "Crie em https://openrouter.ai/keys (tem de começar com sk-or-v1-) e "
+            "reinicie o serviço depois de colar no EasyPanel."
+        )
+    return RuntimeError(f"OpenRouter {status} no modelo {model}: {text}")
+
+
 def chat_completion(model: str, system: str, user: str, timeout: float) -> dict:
     if not settings.openrouter_key:
         raise RuntimeError("OPENROUTER_API_KEY ausente")
+    if not settings.openrouter_key.startswith("sk-or-"):
+        raise RuntimeError(
+            "OPENROUTER_API_KEY inválida: use a chave do OpenRouter (sk-or-v1-...), "
+            "não a chave do site da Perplexity (pplx-...)."
+        )
     body = {
         "model": model,
         "temperature": 0.1,
@@ -137,8 +154,8 @@ def chat_completion(model: str, system: str, user: str, timeout: float) -> dict:
                 detail = str(err.get("message") or err)
             except Exception:
                 detail = response.text[:300]
-            raise RuntimeError(
-                f"OpenRouter {response.status_code} no modelo {model}: {detail or response.reason_phrase}"
+            raise _openrouter_error(
+                response.status_code, model, detail or response.reason_phrase
             )
         return response.json()
 

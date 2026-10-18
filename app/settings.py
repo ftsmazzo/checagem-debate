@@ -8,9 +8,17 @@ def _int(name: str, default: int) -> int:
     return int(raw)
 
 
+def _secret(name: str) -> str:
+    raw = os.environ.get(name, "") or ""
+    cleaned = raw.strip().strip('"').strip("'").replace("\r", "").replace("\n", "")
+    if cleaned.lower().startswith("bearer "):
+        cleaned = cleaned[7:].strip()
+    return cleaned
+
+
 class Settings:
     database_url = os.environ.get("DATABASE_URL", "").strip()
-    openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    openrouter_key = _secret("OPENROUTER_API_KEY")
     app_password = os.environ.get("APP_PASSWORD", "").strip()
     youtube_default = os.environ.get(
         "STREAM_URL",
