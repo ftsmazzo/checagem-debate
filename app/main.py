@@ -59,7 +59,7 @@ class StartBody(BaseModel):
 
 
 class ManualBody(BaseModel):
-    text: str = Field(min_length=12, max_length=800)
+    text: str = Field(min_length=12, max_length=4000)
 
 
 @app.get("/health")
@@ -91,7 +91,7 @@ def estado(request: Request) -> dict:
     running_flag()
     with session() as db:
         state = db.get(RunState, 1)
-        segments = list(db.scalars(select(Segment).order_by(Segment.id.desc()).limit(40)))
+        segments = list(db.scalars(select(Segment).order_by(Segment.id.desc()).limit(80)))
         claims = list(db.scalars(select(Claim).order_by(Claim.id.desc()).limit(40)))
     return {
         "running": bool(state.running) if state else False,
@@ -107,7 +107,7 @@ def estado(request: Request) -> dict:
                 "text": row.text,
                 "created_at": row.created_at.isoformat() if row.created_at else "",
             }
-            for row in reversed(segments)
+            for row in segments
         ],
         "claims": [claim_dict(row) for row in claims],
     }

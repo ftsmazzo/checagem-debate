@@ -4,63 +4,83 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Checagem do debate</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,560&family=Outfit:wght@400;560;650&display=swap" rel="stylesheet">
   <style>
     :root {
-      --ink: #1c1915;
-      --paper: #f4efe6;
-      --panel: #fffaf3;
-      --line: #d9d0c3;
-      --muted: #6d645b;
-      --good: #1f6b45;
-      --bad: #8d2b2b;
-      --warn: #8a5a12;
-      --wait: #3d4f73;
+      --ink: #e7eef8;
+      --muted: #93a4bb;
+      --bg: #07111c;
+      --panel: #102033;
+      --line: #24364d;
+      --blue: #3c7dff;
+      --blue-ink: #07111c;
+      --good: #1f8a5b;
+      --bad: #c44747;
+      --warn: #c4842a;
+      --wait: #3d5f8a;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      font-family: "Segoe UI", sans-serif;
+      min-height: 100vh;
       color: var(--ink);
-      background: var(--paper);
+      background: radial-gradient(1200px 500px at 10% -10%, #16345c 0%, var(--bg) 55%);
+      font-family: Outfit, "Segoe UI", sans-serif;
     }
-    header, main { width: min(1100px, calc(100% - 32px)); margin: 0 auto; }
-    header { padding: 28px 0 12px; }
-    h1 { font-family: Georgia, serif; font-size: 2rem; margin: 0 0 8px; }
-    p { line-height: 1.45; }
-    .lede { max-width: 68ch; color: var(--muted); }
-    .bar, .manual, .login {
+    header, main { width: min(1180px, calc(100% - 28px)); margin: 0 auto; }
+    header { padding: 28px 0 8px; }
+    h1 {
+      margin: 0 0 8px;
+      font-family: Newsreader, Georgia, serif;
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      font-weight: 560;
+      letter-spacing: -0.03em;
+    }
+    .lede { max-width: 68ch; color: var(--muted); line-height: 1.5; }
+    .bar, .composer, .login {
       display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
-      background: var(--panel); border: 1px solid var(--line); padding: 12px; border-radius: 12px;
+      background: var(--panel); border: 1px solid var(--line); padding: 12px; border-radius: 18px;
     }
-    input, textarea, button {
-      font: inherit; border-radius: 8px; border: 1px solid var(--line); padding: 10px 12px;
-    }
-    input, textarea { background: white; color: var(--ink); flex: 1; min-width: 180px; }
-    textarea { min-height: 72px; width: 100%; }
-    button { background: var(--ink); color: white; cursor: pointer; }
+    input, textarea, select, button { font: inherit; border-radius: 10px; border: 1px solid var(--line); }
+    input, textarea, select { background: #0b1828; color: var(--ink); padding: 10px 12px; }
+    input, select { min-width: 180px; }
+    #url, textarea { flex: 1; }
+    textarea { min-height: 74px; width: 100%; }
+    button { background: var(--blue); color: white; padding: 10px 14px; cursor: pointer; }
     button.ghost { background: transparent; color: var(--ink); }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0 40px; }
-    section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; min-height: 240px; }
-    h2 { font-size: 1rem; margin: 0 0 10px; }
-    .chunk, .claim { border-top: 1px solid var(--line); padding: 10px 0; }
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+      outline: 2px solid var(--blue); outline-offset: 2px;
+    }
+    .grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 16px; margin: 16px 0 48px; }
+    section { background: rgba(16, 32, 51, 0.92); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px; min-height: 280px; }
+    h2 { margin: 0 0 12px; font-size: 1.05rem; }
+    .chunk, .claim { border-top: 1px solid var(--line); padding: 12px 0; }
     .chunk:first-of-type, .claim:first-of-type { border-top: 0; }
+    .chunk.marked { background: rgba(60, 125, 255, 0.12); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 12px; }
+    .row { display: flex; gap: 10px; align-items: flex-start; }
+    .row p { margin: 0; line-height: 1.45; }
+    .actions { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
     .meta { color: var(--muted); font-size: 0.85rem; }
-    .chip { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.78rem; color: white; }
+    .chip { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 0.78rem; color: white; }
     .sustentado { background: var(--good); }
     .contradito { background: var(--bad); }
     .exagerado { background: var(--warn); }
     .sem_evidencia, .inconclusivo, .erro { background: var(--wait); }
-    .pendente { background: #7a736b; }
-    .error { color: var(--bad); white-space: pre-wrap; }
-    a { color: var(--good); }
+    .pendente { background: #66788f; }
+    .error { color: #ffb4b4; white-space: pre-wrap; }
+    a { color: #9ec0ff; }
     #login { margin: 16px 0; }
-    @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+    .composer { margin-top: 12px; }
+    @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+    @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
   </style>
 </head>
 <body>
   <header>
     <h1>Checagem do debate</h1>
-    <p class="lede">Ouve a BandNews FM SP (transmissão oficial do debate, sem o bloqueio do YouTube) e confronta frases atribuídas a Lula com fonte pública. Sem link https, a frase fica em “sem fonte suficiente”. Isto não declara fake e não substitui uma checagem jornalística.</p>
+    <p class="lede">A fala mais recente fica no topo. Marque um ou mais trechos da BandNews para montar a frase do Lula e enviar à checagem.</p>
   </header>
   <main>
     <form id="login" class="login">
@@ -70,8 +90,8 @@
     <div id="app" hidden>
       <form id="controls" class="bar">
         <select id="fonte">
-          <option value="bandnews_sp">BandNews FM SP (recomendado)</option>
-          <option value="custom">Outro link (YouTube ou m3u8)</option>
+          <option value="bandnews_sp">BandNews FM SP</option>
+          <option value="custom">Outro link</option>
         </select>
         <input id="url" type="url" required>
         <button type="submit">Ouvir a live</button>
@@ -79,17 +99,21 @@
         <span id="status" class="meta"></span>
       </form>
       <p id="error" class="error"></p>
-      <form id="manual" class="manual">
-        <textarea id="phrase" placeholder="Cole uma frase do Lula para checar agora. Exemplo: entreguei 10 creches." required></textarea>
-        <button type="submit">Checar esta frase</button>
-      </form>
       <div class="grid">
         <section>
           <h2>Transcrição</h2>
+          <div class="actions">
+            <button id="check-selected" type="button">Checar trechos marcados</button>
+            <span id="selected-count" class="meta">Nenhum trecho marcado</span>
+          </div>
           <div id="segments"></div>
         </section>
         <section>
-          <h2>Frases do Lula</h2>
+          <h2>Checagens</h2>
+          <form id="manual" class="composer">
+            <textarea id="phrase" placeholder="Ou escreva a frase inteira aqui." required></textarea>
+            <button type="submit">Checar esta frase</button>
+          </form>
           <div id="claims"></div>
         </section>
       </div>
@@ -108,6 +132,8 @@
     const login = document.querySelector("#login");
     const app = document.querySelector("#app");
     const errorBox = document.querySelector("#error");
+    const marked = new Set();
+    let latestSegments = [];
 
     async function api(path, options) {
       const response = await fetch(path, { credentials: "same-origin", ...options });
@@ -119,6 +145,15 @@
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.detail || "falha na consulta");
       return data;
+    }
+
+    async function sendCheck(text) {
+      await api("/api/checar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text })
+      });
+      await refresh();
     }
 
     login.addEventListener("submit", async (event) => {
@@ -167,39 +202,89 @@
     document.querySelector("#manual").addEventListener("submit", async (event) => {
       event.preventDefault();
       const phrase = document.querySelector("#phrase");
-      await api("/api/checar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: phrase.value })
-      });
+      await sendCheck(phrase.value);
       phrase.value = "";
-      await refresh();
     });
+
+    document.querySelector("#check-selected").addEventListener("click", async () => {
+      const text = latestSegments
+        .filter((row) => marked.has(row.id))
+        .sort((a, b) => a.id - b.id)
+        .map((row) => row.text)
+        .join(" ");
+      if (text.trim().length < 12) {
+        errorBox.textContent = "Marque trechos suficientes para formar a frase.";
+        return;
+      }
+      await sendCheck(text);
+      marked.clear();
+    });
+
+    document.querySelector("#segments").addEventListener("click", async (event) => {
+      const button = event.target.closest("[data-check]");
+      const box = event.target.closest("[data-mark]");
+      if (button) {
+        const row = latestSegments.find((item) => item.id === Number(button.dataset.check));
+        if (row) await sendCheck(row.text);
+      }
+      if (box) {
+        const id = Number(box.dataset.mark);
+        if (box.checked) marked.add(id);
+        else marked.delete(id);
+        box.closest(".chunk").classList.toggle("marked", box.checked);
+        updateCount();
+      }
+    });
+
+    function updateCount() {
+      const count = marked.size;
+      document.querySelector("#selected-count").textContent = count
+        ? count + (count === 1 ? " trecho marcado" : " trechos marcados, na ordem em que foram falados")
+        : "Nenhum trecho marcado";
+    }
 
     function render(state) {
       if (state.youtube_url) urlInput.value = state.youtube_url;
       else if (!urlInput.value) urlInput.value = bandnews;
       fonte.value = (urlInput.value || "").includes("BANDNEWSFM") ? "bandnews_sp" : "custom";
-      const cookies = state.cookies_loaded ? "cookie do YouTube carregado" : "sem cookie do YouTube";
-      document.querySelector("#status").textContent = (state.running ? "ouvindo a live" : "parado") + " · " + cookies;
+      document.querySelector("#status").textContent = state.running ? "ouvindo a BandNews" : "parado";
       errorBox.textContent = state.last_error || "";
-      document.querySelector("#segments").innerHTML = state.segments.length
-        ? state.segments.map((row) => `<article class="chunk"><p>${escapeHtml(row.text)}</p><p class="meta">${escapeHtml(row.created_at)}</p></article>`).join("")
-        : `<p class="meta">A transcrição aparece aqui depois que a live começa a ser ouvida.</p>`;
+      latestSegments = state.segments || [];
+      const alive = new Set(latestSegments.map((row) => row.id));
+      for (const id of [...marked]) if (!alive.has(id)) marked.delete(id);
+      document.querySelector("#segments").innerHTML = latestSegments.length
+        ? latestSegments.map((row) => `<article class="chunk ${marked.has(row.id) ? "marked" : ""}">
+            <div class="row">
+              <input type="checkbox" data-mark="${row.id}" ${marked.has(row.id) ? "checked" : ""} aria-label="Marcar trecho">
+              <p>${escapeHtml(row.text)}</p>
+            </div>
+            <div class="actions">
+              <button type="button" class="ghost" data-check="${row.id}">Checar este trecho</button>
+              <span class="meta">${escapeHtml(formatWhen(row.created_at))}</span>
+            </div>
+          </article>`).join("")
+        : `<p class="meta">A transcrição aparece aqui, com o trecho mais novo no topo.</p>`;
+      updateCount();
       document.querySelector("#claims").innerHTML = state.claims.length
         ? state.claims.map(renderClaim).join("")
-        : `<p class="meta">Nenhuma frase checável do Lula ainda.</p>`;
+        : `<p class="meta">Nenhuma frase enviada ainda.</p>`;
+    }
+
+    function formatWhen(value) {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value || "";
+      return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     }
 
     function renderClaim(claim) {
       const label = labels[claim.status] || claim.status;
       const sources = (claim.sources || []).map((source) =>
-        `<li><a href="${escapeHtml(source.url)}" target="_blank" rel="noreferrer">${escapeHtml(source.title)}</a> — ${escapeHtml(source.note || "")}</li>`
+        `<li><a href="${escapeHtml(source.url)}" target="_blank" rel="noreferrer">${escapeHtml(source.title)}</a> ${escapeHtml(source.note || "")}</li>`
       ).join("");
       return `<article class="claim">
         <span class="chip ${escapeHtml(claim.status)}">${escapeHtml(label)}</span>
         <p><strong>${escapeHtml(claim.normalized)}</strong></p>
-        <p class="meta">Ouvido: ${escapeHtml(claim.quote)} · ${claim.origin === "manual" ? "cola manual" : "live"} · confiança ${Math.round((claim.confidence || 0) * 100)}%</p>
+        <p class="meta">${escapeHtml(claim.quote)}</p>
         <p>${escapeHtml(claim.summary || "")}</p>
         ${claim.missing ? `<p class="meta">${escapeHtml(claim.missing)}</p>` : ""}
         ${sources ? `<ul>${sources}</ul>` : ""}

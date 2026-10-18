@@ -14,7 +14,17 @@ ALLOWED = {
 }
 NEEDS_SOURCE = {"sustentado", "contradito", "exagerado"}
 
+DEBATE_RULES = """
+Regras do debate Band de 18/10/2026, mediado por Adriana Araújo e Eduardo Oinegue:
+- Bloco 1: cada mediador faz uma pergunta. Flávio responde primeiro (2 min). Confronto de 30 min, 15 para cada um. Lula pergunta primeiro.
+- Bloco 2: Adriana faz uma pergunta aos dois. Flávio responde primeiro (2 min). Confronto de 15 min. Flávio pergunta primeiro. Pergunta 1min30, resposta e tréplica 4 min, réplica 2 min.
+- Bloco 3: Eduardo faz a mesma pergunta aos dois. Lula responde primeiro (2 min). Confronto de 15 min. Lula pergunta primeiro, com os mesmos tempos do bloco 2.
+- Considerações finais: 2 min cada. Lula começa. Flávio encerra.
+Pergunta de Adriana ou Eduardo não é fala de candidato. Use o nome dito no áudio. Se o trecho não identificar Lula, não atribua a ele.
+"""
+
 EXTRACT_SYSTEM = """Você extrai afirmações verificáveis de um trecho de debate presidencial em português.
+""" + DEBATE_RULES + """
 Responda só JSON neste formato:
 {"claims":[{"quote":"trecho curto ouvido","claim":"afirmação reescrita de forma checável","speaker":"lula|outro|incerto"}]}
 
@@ -26,7 +36,9 @@ Regras:
 - Se não houver afirmação checável, devolva {"claims":[]}."""
 
 VERIFY_SYSTEM = """Você checa uma afirmação pública atribuída a Lula no debate presidencial de 18/10/2026.
-Use a busca na web. Responda só JSON:
+""" + DEBATE_RULES + """
+Faça mais de uma busca se a primeira for vaga. Procure o número, o período e a definição (por exemplo o que conta como creche).
+Responda só JSON:
 {"status":"sustentado|contradito|exagerado|sem_evidencia|inconclusivo","confidence":0.4,"summary":"até 500 caracteres","missing":"o que impediu cravar, ou vazio","sources":[{"title":"nome da página","url":"https://...","note":"o que a página mostra"}]}
 
 Regras:

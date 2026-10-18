@@ -21,10 +21,10 @@ class Settings:
     ).strip()
     stt_model = os.environ.get("OPENROUTER_STT_MODEL", "openai/whisper-large-v3").strip()
     extract_model = os.environ.get(
-        "OPENROUTER_EXTRACT_MODEL", "google/gemini-2.5-flash"
+        "OPENROUTER_EXTRACT_MODEL", "anthropic/claude-haiku-4.5"
     ).strip()
     fact_model = os.environ.get(
-        "OPENROUTER_FACT_MODEL", "google/gemini-2.5-flash:online"
+        "OPENROUTER_FACT_MODEL", "anthropic/claude-sonnet-4:online"
     ).strip()
     chunk_seconds = _int("CHUNK_SECONDS", 12)
     youtube_cookies = os.environ.get("YOUTUBE_COOKIES", "").strip()
