@@ -1,6 +1,6 @@
 import unittest
 
-from app.factcheck import parse_json, sanitize_verdict
+from app.factcheck import attach_citations, citation_urls, parse_json, sanitize_verdict
 from app.listener import explain_audio_error, resolve_stream, youtube_cookie_text
 
 
@@ -28,6 +28,28 @@ class VerdictTests(unittest.TestCase):
             {"status": "exagerado", "sources": [{"url": "http://example.com"}]}
         )
         self.assertEqual(verdict["status"], "sem_evidencia")
+
+    def test_citacao_da_busca_entra_como_fonte(self):
+        payload = {
+            "citations": ["https://www.ibge.gov.br/tabela"],
+            "choices": [
+                {
+                    "message": {
+                        "annotations": [
+                            {"url_citation": {"url": "https://www.gov.br/inep/nota"}}
+                        ]
+                    }
+                }
+            ],
+        }
+        verdict = sanitize_verdict(
+            attach_citations(
+                {"status": "sustentado", "confidence": 0.7, "sources": []},
+                citation_urls(payload),
+            )
+        )
+        self.assertEqual(verdict["status"], "sustentado")
+        self.assertEqual(len(verdict["sources"]), 2)
 
     def test_json_com_cerca(self):
         self.assertEqual(parse_json('```json\n{"claims":[]}\n```')["claims"], [])

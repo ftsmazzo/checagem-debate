@@ -113,7 +113,7 @@ def _headers() -> dict:
     }
 
 
-def chat_json(model: str, system: str, user: str, timeout: float) -> dict:
+def chat_completion(model: str, system: str, user: str, timeout: float) -> dict:
     if not settings.openrouter_key:
         raise RuntimeError("OPENROUTER_API_KEY ausente")
     body = {
@@ -131,13 +131,51 @@ def chat_json(model: str, system: str, user: str, timeout: float) -> dict:
             json=body,
         )
         response.raise_for_status()
-        payload = response.json()
+        return response.json()
+
+
+def message_text(payload: dict) -> str:
     content = payload["choices"][0]["message"]["content"]
     if isinstance(content, list):
         content = "".join(
             part.get("text", "") for part in content if isinstance(part, dict)
         )
-    return parse_json(str(content))
+    return str(content)
+
+
+def chat_json(model: str, system: str, user: str, timeout: float) -> dict:
+    return parse_json(message_text(chat_completion(model, system, user, timeout)))
+
+
+def citation_urls(payload: dict) -> list[str]:
+    found = []
+    for item in payload.get("citations") or []:
+        if isinstance(item, str):
+            found.append(item)
+        elif isinstance(item, dict):
+            found.append(str(item.get("url") or ""))
+    message = ((payload.get("choices") or [{}])[0].get("message") or {})
+    for note in message.get("annotations") or []:
+        if not isinstance(note, dict):
+            continue
+        cite = note.get("url_citation") or note
+        if isinstance(cite, dict):
+            found.append(str(cite.get("url") or ""))
+    return found
+
+
+def attach_citations(data: dict, urls: list[str]) -> dict:
+    sources = [item for item in (data.get("sources") or []) if isinstance(item, dict)]
+    known = {str(item.get("url") or "").strip() for item in sources}
+    for url in urls:
+        clean = str(url or "").strip()
+        if not clean.startswith("https://") or clean in known:
+            continue
+        sources.append({"title": clean, "url": clean, "note": "página usada na busca"})
+        known.add(clean)
+    merged = dict(data)
+    merged["sources"] = sources
+    return merged
 
 
 def extract_claims(transcript: str) -> list[dict]:
@@ -163,10 +201,11 @@ def extract_claims(transcript: str) -> list[dict]:
 
 
 def verify_claim(quote: str, claim: str) -> dict:
-    data = chat_json(
+    payload = chat_completion(
         settings.fact_model,
         VERIFY_SYSTEM,
         f"Frase ouvida:\n{quote}\n\nAfirmação a checar:\n{claim}",
         timeout=90,
     )
+    data = attach_citations(parse_json(message_text(payload)), citation_urls(payload))
     return sanitize_verdict(data)
