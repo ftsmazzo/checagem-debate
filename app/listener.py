@@ -33,29 +33,57 @@ def assert_youtube(url: str) -> str:
     return url.strip()
 
 
-def explain_audio_error(detail: str) -> str:
+def explain_audio_error(detail: str, has_cookies: bool = False) -> str:
     text = " ".join(detail.split())
     if "not a bot" in text or "Sign in to confirm" in text:
+        if has_cookies:
+            return (
+                "O cookie do YouTube chegou no servidor, mas o YouTube recusou essa sessão. "
+                "Apague a variável YOUTUBE_COOKIES, exporte de novo só o domínio youtube.com "
+                "e salve de novo. Se o aviso voltar, a live não libera áudio para esta VPS."
+            )
         return (
-            "O YouTube bloqueou o servidor e pediu login. "
-            "No navegador, logado no YouTube, exporte os cookies em formato cookies.txt "
-            "e cole o arquivo na variável YOUTUBE_COOKIES do serviço app. "
-            "Sem esse cookie a live não entrega áudio."
+            "O YouTube bloqueou o servidor e o cookie não chegou no processo. "
+            "A variável YOUTUBE_COOKIES precisa ser salva e o serviço reiniciado. "
+            "Use só as linhas de youtube.com, não o arquivo inteiro do navegador."
         )
     if "Invalid data found when processing input" in text:
         return "O áudio da live não chegou. " + text[-400:]
     return text[-500:]
 
 
+def youtube_cookie_text(raw: str) -> str:
+    text = (raw or "").strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in {'"', "'"}:
+        text = text[1:-1]
+    if "\n" not in text and "\\n" in text:
+        text = text.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\t", "\t")
+    kept = ["# Netscape HTTP Cookie File"]
+    for line in text.splitlines():
+        if not line or line.startswith("#"):
+            continue
+        domain = line.split("\t", 1)[0].lstrip(".").lower()
+        if domain == "youtube.com" or domain.endswith(".youtube.com"):
+            kept.append(line)
+    if len(kept) == 1:
+        return ""
+    return "\n".join(kept) + "\n"
+
+
 def cookie_args() -> list[str]:
     path = Path(settings.cookies_path or "/tmp/youtube-cookies.txt")
-    if settings.youtube_cookies:
+    filtered = youtube_cookie_text(settings.youtube_cookies)
+    if filtered:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(settings.youtube_cookies + "\n", encoding="utf-8")
+        path.write_text(filtered, encoding="utf-8")
         os.chmod(path, 0o600)
-    if path.is_file() and path.stat().st_size > 20:
+    if path.is_file() and "youtube.com" in path.read_text(encoding="utf-8", errors="ignore"):
         return ["--cookies", str(path)]
     return []
+
+
+def cookies_loaded() -> bool:
+    return bool(cookie_args())
 
 
 def _fingerprint(text: str) -> str:
@@ -186,7 +214,7 @@ class DebateListener:
         while not self.audio_stop.is_set():
             if ytdlp.poll() is not None and ffmpeg.poll() is not None:
                 raw = " ".join(errors) or f"yt-dlp saiu com código {ytdlp.returncode}"
-                detail = explain_audio_error(raw)
+                detail = explain_audio_error(raw, has_cookies=bool(cookie_args()))
                 self._set_state(None, None, detail)
                 if "YOUTUBE_COOKIES" in detail:
                     self.audio_stop.set()

@@ -167,7 +167,8 @@
 
     function render(state) {
       document.querySelector("#url").value = state.youtube_url || document.querySelector("#url").value;
-      document.querySelector("#status").textContent = state.running ? "ouvindo a live" : "parado";
+      const cookies = state.cookies_loaded ? "cookie do YouTube carregado" : "sem cookie do YouTube";
+      document.querySelector("#status").textContent = (state.running ? "ouvindo a live" : "parado") + " · " + cookies;
       errorBox.textContent = state.last_error || "";
       document.querySelector("#segments").innerHTML = state.segments.length
         ? state.segments.map((row) => `<article class="chunk"><p>${escapeHtml(row.text)}</p><p class="meta">${escapeHtml(row.created_at)}</p></article>`).join("")

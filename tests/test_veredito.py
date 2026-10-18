@@ -1,7 +1,7 @@
 import unittest
 
 from app.factcheck import parse_json, sanitize_verdict
-from app.listener import assert_youtube, explain_audio_error
+from app.listener import assert_youtube, explain_audio_error, youtube_cookie_text
 
 
 class VerdictTests(unittest.TestCase):
@@ -32,12 +32,31 @@ class VerdictTests(unittest.TestCase):
     def test_json_com_cerca(self):
         self.assertEqual(parse_json('```json\n{"claims":[]}\n```')["claims"], [])
 
-    def test_erro_de_robo_vira_instrucao(self):
-        message = explain_audio_error(
-            "Sign in to confirm you're not a bot. pipe:0: Invalid data found when processing input"
+    def test_erro_de_robo_sem_cookie(self):
+        message = explain_audio_error("Sign in to confirm you're not a bot")
+        self.assertIn("não chegou", message)
+
+    def test_erro_de_robo_com_cookie(self):
+        message = explain_audio_error("Sign in to confirm you're not a bot", has_cookies=True)
+        self.assertIn("recusou", message)
+
+    def test_filtra_so_youtube(self):
+        raw = "\n".join(
+            [
+                "# Netscape HTTP Cookie File",
+                ".paypal.com\tTRUE\t/\tTRUE\t1\tsegredo\tabc",
+                ".youtube.com\tTRUE\t/\tTRUE\t1\tLOGIN_INFO\tabc",
+            ]
         )
-        self.assertIn("YOUTUBE_COOKIES", message)
-        self.assertNotIn("Invalid data", message)
+        kept = youtube_cookie_text(raw)
+        self.assertIn("youtube.com", kept)
+        self.assertNotIn("paypal.com", kept)
+
+    def test_aceita_quebra_escapada(self):
+        raw = ".youtube.com\\tTRUE\\t/\\tTRUE\\t1\\tPREF\\tok\\n.google.com\\tTRUE\\t/\\tTRUE\\t1\\tSID\\tok"
+        kept = youtube_cookie_text(raw)
+        self.assertIn("PREF", kept)
+        self.assertNotIn("google.com", kept)
 
     def test_so_aceita_youtube(self):
         self.assertIn("youtube.com", assert_youtube("https://www.youtube.com/watch?v=Gqc1rQtzWUk"))

@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.db import Claim, RunState, Segment, claim_dict, init_db, ping, session
-from app.listener import assert_youtube, enqueue_manual, get_listener, running_flag
+from app.listener import assert_youtube, cookies_loaded, enqueue_manual, get_listener, running_flag
 from app.settings import settings
 
 sessions: set[str] = set()
@@ -90,6 +90,7 @@ def estado(request: Request) -> dict:
         "running": bool(state.running) if state else False,
         "youtube_url": state.youtube_url if state else settings.youtube_default,
         "last_error": state.last_error if state else "",
+        "cookies_loaded": cookies_loaded(),
         "segments": [
             {
                 "id": row.id,
