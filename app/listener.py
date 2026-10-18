@@ -33,6 +33,31 @@ def assert_youtube(url: str) -> str:
     return url.strip()
 
 
+def explain_audio_error(detail: str) -> str:
+    text = " ".join(detail.split())
+    if "not a bot" in text or "Sign in to confirm" in text:
+        return (
+            "O YouTube bloqueou o servidor e pediu login. "
+            "No navegador, logado no YouTube, exporte os cookies em formato cookies.txt "
+            "e cole o arquivo na variável YOUTUBE_COOKIES do serviço app. "
+            "Sem esse cookie a live não entrega áudio."
+        )
+    if "Invalid data found when processing input" in text:
+        return "O áudio da live não chegou. " + text[-400:]
+    return text[-500:]
+
+
+def cookie_args() -> list[str]:
+    path = Path(settings.cookies_path or "/tmp/youtube-cookies.txt")
+    if settings.youtube_cookies:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(settings.youtube_cookies + "\n", encoding="utf-8")
+        os.chmod(path, 0o600)
+    if path.is_file() and path.stat().st_size > 20:
+        return ["--cookies", str(path)]
+    return []
+
+
 def _fingerprint(text: str) -> str:
     folded = " ".join(text.casefold().split())
     return hashlib.sha256(folded.encode("utf-8")).hexdigest()
@@ -113,7 +138,8 @@ class DebateListener:
                 "-f",
                 "ba/bestaudio/best",
                 "--extractor-args",
-                "youtube:player_client=android,web",
+                "youtube:player_client=default,web",
+                *cookie_args(),
                 "-o",
                 "-",
                 url,
@@ -159,8 +185,11 @@ class DebateListener:
         seen: set[str] = set()
         while not self.audio_stop.is_set():
             if ytdlp.poll() is not None and ffmpeg.poll() is not None:
-                detail = " ".join(errors)[-500:] or f"yt-dlp saiu com código {ytdlp.returncode}"
+                raw = " ".join(errors) or f"yt-dlp saiu com código {ytdlp.returncode}"
+                detail = explain_audio_error(raw)
                 self._set_state(None, None, detail)
+                if "YOUTUBE_COOKIES" in detail:
+                    self.audio_stop.set()
                 return
             ready = _stable_chunks(self.chunk_dir, seen)
             for path in ready:

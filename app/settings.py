@@ -24,6 +24,8 @@ class Settings:
         "OPENROUTER_FACT_MODEL", "google/gemini-2.5-flash:online"
     ).strip()
     chunk_seconds = _int("CHUNK_SECONDS", 12)
+    youtube_cookies = os.environ.get("YOUTUBE_COOKIES", "").strip()
+    cookies_path = os.environ.get("YOUTUBE_COOKIES_PATH", "/tmp/youtube-cookies.txt").strip()
     referer = os.environ.get(
         "OPENROUTER_HTTP_REFERER", "https://checagem-debate-app.kxryyk.easypanel.host"
     ).strip()

@@ -1,7 +1,7 @@
 import unittest
 
 from app.factcheck import parse_json, sanitize_verdict
-from app.listener import assert_youtube
+from app.listener import assert_youtube, explain_audio_error
 
 
 class VerdictTests(unittest.TestCase):
@@ -31,6 +31,13 @@ class VerdictTests(unittest.TestCase):
 
     def test_json_com_cerca(self):
         self.assertEqual(parse_json('```json\n{"claims":[]}\n```')["claims"], [])
+
+    def test_erro_de_robo_vira_instrucao(self):
+        message = explain_audio_error(
+            "Sign in to confirm you're not a bot. pipe:0: Invalid data found when processing input"
+        )
+        self.assertIn("YOUTUBE_COOKIES", message)
+        self.assertNotIn("Invalid data", message)
 
     def test_so_aceita_youtube(self):
         self.assertIn("youtube.com", assert_youtube("https://www.youtube.com/watch?v=Gqc1rQtzWUk"))
