@@ -17,6 +17,16 @@ from app.factcheck import extract_claims, verify_claim
 from app.settings import settings
 
 YOUTUBE_HOSTS = {"www.youtube.com", "youtube.com", "m.youtube.com", "youtu.be"}
+STREAM_HOSTS = YOUTUBE_HOSTS | {
+    "playerservices.streamtheworld.com",
+    "live.streamtheworld.com",
+}
+PRESETS = {
+    "bandnews_sp": (
+        "https://playerservices.streamtheworld.com/api/livestream-redirect/"
+        "BANDNEWSFM_SPAAC.m3u8?dist=bandsite"
+    ),
+}
 NOISE = (
     "obrigado por assistir",
     "legendas pela comunidade",
@@ -25,12 +35,28 @@ NOISE = (
 )
 
 
-def assert_youtube(url: str) -> str:
-    parsed = urlparse(url.strip())
+def resolve_stream(url: str) -> str:
+    cleaned = (url or "").strip()
+    if cleaned in PRESETS:
+        return PRESETS[cleaned]
+    if cleaned.startswith("preset:"):
+        key = cleaned.split(":", 1)[1]
+        if key not in PRESETS:
+            raise ValueError("fonte desconhecida")
+        return PRESETS[key]
+    parsed = urlparse(cleaned)
     host = (parsed.hostname or "").lower()
-    if parsed.scheme not in {"http", "https"} or host not in YOUTUBE_HOSTS:
-        raise ValueError("use um link do YouTube")
-    return url.strip()
+    if parsed.scheme not in {"http", "https"}:
+        raise ValueError("use um link https")
+    if host in STREAM_HOSTS or host.endswith(".streamtheworld.com") or cleaned.endswith(".m3u8") or ".m3u8?" in cleaned:
+        return cleaned
+    if host in YOUTUBE_HOSTS:
+        return cleaned
+    raise ValueError("use BandNews FM, um m3u8 ou um link do YouTube")
+
+
+def assert_youtube(url: str) -> str:
+    return resolve_stream(url)
 
 
 def explain_audio_error(detail: str, has_cookies: bool = False) -> str:
@@ -38,14 +64,12 @@ def explain_audio_error(detail: str, has_cookies: bool = False) -> str:
     if "not a bot" in text or "Sign in to confirm" in text:
         if has_cookies:
             return (
-                "O cookie do YouTube chegou no servidor, mas o YouTube recusou essa sessão. "
-                "Apague a variável YOUTUBE_COOKIES, exporte de novo só o domínio youtube.com "
-                "e salve de novo. Se o aviso voltar, a live não libera áudio para esta VPS."
+                "O YouTube recusou o IP desta VPS. "
+                "Troque a fonte para BandNews FM SP, que transmite o debate sem o bloqueio."
             )
         return (
-            "O YouTube bloqueou o servidor e o cookie não chegou no processo. "
-            "A variável YOUTUBE_COOKIES precisa ser salva e o serviço reiniciado. "
-            "Use só as linhas de youtube.com, não o arquivo inteiro do navegador."
+            "O YouTube bloqueou o servidor. "
+            "Use a fonte BandNews FM SP em vez do YouTube."
         )
     if "Invalid data found when processing input" in text:
         return "O áudio da live não chegou. " + text[-400:]
@@ -86,6 +110,11 @@ def cookies_loaded() -> bool:
     return bool(cookie_args())
 
 
+def is_youtube(url: str) -> bool:
+    host = (urlparse(url).hostname or "").lower()
+    return host in YOUTUBE_HOSTS
+
+
 def _fingerprint(text: str) -> str:
     folded = " ".join(text.casefold().split())
     return hashlib.sha256(folded.encode("utf-8")).hexdigest()
@@ -102,7 +131,7 @@ class DebateListener:
         self.chunk_dir = Path("/tmp/debate-chunks")
 
     def start(self, url: str) -> None:
-        url = assert_youtube(url)
+        url = resolve_stream(url)
         if not settings.openrouter_key:
             raise RuntimeError("OPENROUTER_API_KEY ausente no serviço")
         with self.lock:
@@ -147,14 +176,59 @@ class DebateListener:
         self.chunk_dir.mkdir(parents=True, exist_ok=True)
         while not self.audio_stop.is_set():
             try:
-                self._run_once(url)
+                if is_youtube(url):
+                    self._run_youtube(url)
+                else:
+                    self._run_hls(url)
             except Exception as exc:
                 self._set_state(None, None, f"áudio: {exc}")
             if self.audio_stop.wait(8):
                 break
         self._set_state(False, None, None)
 
-    def _run_once(self, url: str) -> None:
+    def _run_hls(self, url: str) -> None:
+        for old in self.chunk_dir.glob("c*.mp3"):
+            old.unlink(missing_ok=True)
+        pattern = str(self.chunk_dir / "c%05d.mp3")
+        ffmpeg = subprocess.Popen(
+            [
+                "ffmpeg",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-reconnect",
+                "1",
+                "-reconnect_streamed",
+                "1",
+                "-reconnect_delay_max",
+                "5",
+                "-i",
+                url,
+                "-vn",
+                "-ac",
+                "1",
+                "-ar",
+                "16000",
+                "-c:a",
+                "libmp3lame",
+                "-b:a",
+                "64k",
+                "-f",
+                "segment",
+                "-segment_time",
+                str(settings.chunk_seconds),
+                "-reset_timestamps",
+                "1",
+                pattern,
+            ],
+            stderr=subprocess.PIPE,
+        )
+        self.procs = [ffmpeg]
+        errors: list[str] = []
+        threading.Thread(target=_drain, args=(ffmpeg.stderr, errors), daemon=True).start()
+        self._consume_chunks(ffmpeg, errors, youtube=False)
+
+    def _run_youtube(self, url: str) -> None:
         for old in self.chunk_dir.glob("c*.mp3"):
             old.unlink(missing_ok=True)
         ytdlp = subprocess.Popen(
@@ -210,17 +284,28 @@ class DebateListener:
         errors: list[str] = []
         threading.Thread(target=_drain, args=(ytdlp.stderr, errors), daemon=True).start()
         threading.Thread(target=_drain, args=(ffmpeg.stderr, errors), daemon=True).start()
+        self._consume_chunks(ffmpeg, errors, youtube=True, ytdlp=ytdlp)
+
+    def _consume_chunks(
+        self,
+        ffmpeg: subprocess.Popen,
+        errors: list[str],
+        youtube: bool,
+        ytdlp: subprocess.Popen | None = None,
+    ) -> None:
         seen: set[str] = set()
         while not self.audio_stop.is_set():
-            if ytdlp.poll() is not None and ffmpeg.poll() is not None:
-                raw = " ".join(errors) or f"yt-dlp saiu com código {ytdlp.returncode}"
-                detail = explain_audio_error(raw, has_cookies=bool(cookie_args()))
+            ended = ffmpeg.poll() is not None
+            if ytdlp is not None:
+                ended = ended and ytdlp.poll() is not None
+            if ended:
+                raw = " ".join(errors) or f"processo saiu com código {ffmpeg.returncode}"
+                detail = explain_audio_error(raw, has_cookies=bool(cookie_args())) if youtube else raw[-500:]
                 self._set_state(None, None, detail)
-                if "YOUTUBE_COOKIES" in detail:
+                if youtube and "BandNews" in detail:
                     self.audio_stop.set()
                 return
-            ready = _stable_chunks(self.chunk_dir, seen)
-            for path in ready:
+            for path in _stable_chunks(self.chunk_dir, seen):
                 seen.add(path.name)
                 self._transcribe_file(path)
             time.sleep(1)
@@ -400,8 +485,3 @@ def running_flag() -> bool:
                 state.updated_at = utcnow()
                 db.commit()
     return alive
-
-
-def chunk_dir_override(path: str) -> None:
-    os.makedirs(path, exist_ok=True)
-    get_listener().chunk_dir = Path(path)

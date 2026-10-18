@@ -9,7 +9,7 @@ Quem fala é inferido pelo texto. Se a autoria não estiver clara, a frase não 
 ## Uso
 
 1. Abra o painel e entre com a senha.
-2. Confira o link da live e clique em ouvir.
+2. Escolha BandNews FM SP e clique em ouvir. Essa é a transmissão oficial do debate e não passa pelo bloqueio do YouTube na VPS.
 3. Acompanhe a transcrição e os vereditos. Pare quando o debate acabar: cada trecho de áudio e cada busca gastam crédito da OpenRouter.
 
 Se o YouTube responder “Sign in to confirm you're not a bot”, exporte os cookies da conta logada no formato Netscape (`cookies.txt`) e cole o conteúdo em `YOUTUBE_COOKIES`. O arquivo não entra no git.

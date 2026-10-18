@@ -1,7 +1,7 @@
 import unittest
 
 from app.factcheck import parse_json, sanitize_verdict
-from app.listener import assert_youtube, explain_audio_error, youtube_cookie_text
+from app.listener import explain_audio_error, resolve_stream, youtube_cookie_text
 
 
 class VerdictTests(unittest.TestCase):
@@ -34,7 +34,7 @@ class VerdictTests(unittest.TestCase):
 
     def test_erro_de_robo_sem_cookie(self):
         message = explain_audio_error("Sign in to confirm you're not a bot")
-        self.assertIn("não chegou", message)
+        self.assertIn("BandNews FM SP", message)
 
     def test_erro_de_robo_com_cookie(self):
         message = explain_audio_error("Sign in to confirm you're not a bot", has_cookies=True)
@@ -58,10 +58,11 @@ class VerdictTests(unittest.TestCase):
         self.assertIn("PREF", kept)
         self.assertNotIn("google.com", kept)
 
-    def test_so_aceita_youtube(self):
-        self.assertIn("youtube.com", assert_youtube("https://www.youtube.com/watch?v=Gqc1rQtzWUk"))
+    def test_aceita_bandnews_e_youtube(self):
+        self.assertIn("BANDNEWSFM", resolve_stream("bandnews_sp"))
+        self.assertIn("youtube.com", resolve_stream("https://www.youtube.com/watch?v=Gqc1rQtzWUk"))
         with self.assertRaises(ValueError):
-            assert_youtube("https://evil.example/audio")
+            resolve_stream("https://evil.example/audio")
 
 
 if __name__ == "__main__":

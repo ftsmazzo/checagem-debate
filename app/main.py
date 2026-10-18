@@ -11,7 +11,14 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.db import Claim, RunState, Segment, claim_dict, init_db, ping, session
-from app.listener import assert_youtube, cookies_loaded, enqueue_manual, get_listener, running_flag
+from app.listener import (
+    PRESETS,
+    cookies_loaded,
+    enqueue_manual,
+    get_listener,
+    resolve_stream,
+    running_flag,
+)
 from app.settings import settings
 
 sessions: set[str] = set()
@@ -91,6 +98,9 @@ def estado(request: Request) -> dict:
         "youtube_url": state.youtube_url if state else settings.youtube_default,
         "last_error": state.last_error if state else "",
         "cookies_loaded": cookies_loaded(),
+        "presets": {
+            "bandnews_sp": PRESETS["bandnews_sp"],
+        },
         "segments": [
             {
                 "id": row.id,
@@ -107,7 +117,7 @@ def estado(request: Request) -> dict:
 def iniciar(body: StartBody, request: Request) -> dict:
     authorized(request)
     try:
-        url = assert_youtube(body.youtube_url or settings.youtube_default)
+        url = resolve_stream(body.youtube_url or settings.youtube_default)
         get_listener().start(url)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

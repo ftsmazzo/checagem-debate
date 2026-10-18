@@ -60,7 +60,7 @@
 <body>
   <header>
     <h1>Checagem do debate</h1>
-    <p class="lede">Transcreve a live da Band e confronta frases atribuídas a Lula com fonte pública. Sem link https, a frase fica em “sem fonte suficiente”. Isto não declara fake e não substitui uma checagem jornalística.</p>
+    <p class="lede">Ouve a BandNews FM SP (transmissão oficial do debate, sem o bloqueio do YouTube) e confronta frases atribuídas a Lula com fonte pública. Sem link https, a frase fica em “sem fonte suficiente”. Isto não declara fake e não substitui uma checagem jornalística.</p>
   </header>
   <main>
     <form id="login" class="login">
@@ -69,6 +69,10 @@
     </form>
     <div id="app" hidden>
       <form id="controls" class="bar">
+        <select id="fonte">
+          <option value="bandnews_sp">BandNews FM SP (recomendado)</option>
+          <option value="custom">Outro link (YouTube ou m3u8)</option>
+        </select>
         <input id="url" type="url" required>
         <button type="submit">Ouvir a live</button>
         <button id="stop" class="ghost" type="button">Parar</button>
@@ -134,13 +138,20 @@
       }
     });
 
+    const fonte = document.querySelector("#fonte");
+    const urlInput = document.querySelector("#url");
+    const bandnews = "https://playerservices.streamtheworld.com/api/livestream-redirect/BANDNEWSFM_SPAAC.m3u8?dist=bandsite";
+    fonte.addEventListener("change", () => {
+      if (fonte.value === "bandnews_sp") urlInput.value = bandnews;
+    });
     document.querySelector("#controls").addEventListener("submit", async (event) => {
       event.preventDefault();
       try {
+        const stream = fonte.value === "bandnews_sp" ? bandnews : urlInput.value;
         await api("/api/iniciar", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ youtube_url: document.querySelector("#url").value })
+          body: JSON.stringify({ youtube_url: stream })
         });
         await refresh();
       } catch (error) {
@@ -166,7 +177,9 @@
     });
 
     function render(state) {
-      document.querySelector("#url").value = state.youtube_url || document.querySelector("#url").value;
+      if (state.youtube_url) urlInput.value = state.youtube_url;
+      else if (!urlInput.value) urlInput.value = bandnews;
+      fonte.value = (urlInput.value || "").includes("BANDNEWSFM") ? "bandnews_sp" : "custom";
       const cookies = state.cookies_loaded ? "cookie do YouTube carregado" : "sem cookie do YouTube";
       document.querySelector("#status").textContent = (state.running ? "ouvindo a live" : "parado") + " · " + cookies;
       errorBox.textContent = state.last_error || "";

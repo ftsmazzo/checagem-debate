@@ -13,8 +13,11 @@ class Settings:
     openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     app_password = os.environ.get("APP_PASSWORD", "").strip()
     youtube_default = os.environ.get(
-        "YOUTUBE_URL",
-        "https://www.youtube.com/watch?v=Gqc1rQtzWUk",
+        "STREAM_URL",
+        os.environ.get(
+            "YOUTUBE_URL",
+            "https://playerservices.streamtheworld.com/api/livestream-redirect/BANDNEWSFM_SPAAC.m3u8?dist=bandsite",
+        ),
     ).strip()
     stt_model = os.environ.get("OPENROUTER_STT_MODEL", "openai/whisper-large-v3").strip()
     extract_model = os.environ.get(
