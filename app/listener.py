@@ -452,14 +452,16 @@ def collapse_pending_queue() -> dict:
         )
         seen: set[str] = set()
         for row in rows:
-            key = " ".join((row.normalized or "").casefold().split())[:100]
-            if key in seen:
+            words = re.findall(r"[a-z0-9à-ü]{4,}", (row.normalized or "").casefold())
+            key = " ".join(sorted(set(words))[:12])
+            if key and key in seen:
                 row.status = "erro"
                 row.summary = "duplicata na fila — mesma afirmação já estava em checagem"
                 row.confidence = 0
                 dropped += 1
             else:
-                seen.add(key)
+                if key:
+                    seen.add(key)
                 if row.status == "processando":
                     row.status = "pendente"
                 kept += 1
