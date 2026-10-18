@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Checagem do debate</title>
+  <style>
+    :root {
+      --ink: #1c1915;
+      --paper: #f4efe6;
+      --panel: #fffaf3;
+      --line: #d9d0c3;
+      --muted: #6d645b;
+      --good: #1f6b45;
+      --bad: #8d2b2b;
+      --warn: #8a5a12;
+      --wait: #3d4f73;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+    }
+    header, main { width: min(1100px, calc(100% - 32px)); margin: 0 auto; }
+    header { padding: 28px 0 12px; }
+    h1 { font-family: Georgia, serif; font-size: 2rem; margin: 0 0 8px; }
+    p { line-height: 1.45; }
+    .lede { max-width: 68ch; color: var(--muted); }
+    .bar, .manual, .login {
+      display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+      background: var(--panel); border: 1px solid var(--line); padding: 12px; border-radius: 12px;
+    }
+    input, textarea, button {
+      font: inherit; border-radius: 8px; border: 1px solid var(--line); padding: 10px 12px;
+    }
+    input, textarea { background: white; color: var(--ink); flex: 1; min-width: 180px; }
+    textarea { min-height: 72px; width: 100%; }
+    button { background: var(--ink); color: white; cursor: pointer; }
+    button.ghost { background: transparent; color: var(--ink); }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0 40px; }
+    section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; min-height: 240px; }
+    h2 { font-size: 1rem; margin: 0 0 10px; }
+    .chunk, .claim { border-top: 1px solid var(--line); padding: 10px 0; }
+    .chunk:first-of-type, .claim:first-of-type { border-top: 0; }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .chip { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.78rem; color: white; }
+    .sustentado { background: var(--good); }
+    .contradito { background: var(--bad); }
+    .exagerado { background: var(--warn); }
+    .sem_evidencia, .inconclusivo, .erro { background: var(--wait); }
+    .pendente { background: #7a736b; }
+    .error { color: var(--bad); white-space: pre-wrap; }
+    a { color: var(--good); }
+    #login { margin: 16px 0; }
+    @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Checagem do debate</h1>
+    <p class="lede">Transcreve a live da Band e confronta frases atribuídas a Lula com fonte pública. Sem link https, a frase fica em “sem fonte suficiente”. Isto não declara fake e não substitui uma checagem jornalística.</p>
+  </header>
+  <main>
+    <form id="login" class="login">
+      <input id="password" type="password" placeholder="Senha do painel" autocomplete="current-password" required>
+      <button type="submit">Entrar</button>
+    </form>
+    <div id="app" hidden>
+      <form id="controls" class="bar">
+        <input id="url" type="url" required>
+        <button type="submit">Ouvir a live</button>
+        <button id="stop" class="ghost" type="button">Parar</button>
+        <span id="status" class="meta"></span>
+      </form>
+      <p id="error" class="error"></p>
+      <form id="manual" class="manual">
+        <textarea id="phrase" placeholder="Cole uma frase do Lula para checar agora. Exemplo: entreguei 10 creches." required></textarea>
+        <button type="submit">Checar esta frase</button>
+      </form>
+      <div class="grid">
+        <section>
+          <h2>Transcrição</h2>
+          <div id="segments"></div>
+        </section>
+        <section>
+          <h2>Frases do Lula</h2>
+          <div id="claims"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+  <script>
+    const labels = {
+      pendente: "Checando",
+      sustentado: "Com fonte a favor",
+      contradito: "Fontes contrariam",
+      exagerado: "Recorte exagerado",
+      sem_evidencia: "Sem fonte suficiente",
+      inconclusivo: "Depende do recorte",
+      erro: "Erro na consulta"
+    };
+    const login = document.querySelector("#login");
+    const app = document.querySelector("#app");
+    const errorBox = document.querySelector("#error");
+
+    async function api(path, options) {
+      const response = await fetch(path, { credentials: "same-origin", ...options });
+      if (response.status === 401) {
+        app.hidden = true;
+        login.hidden = false;
+        throw new Error("faça login");
+      }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || "falha na consulta");
+      return data;
+    }
+
+    login.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      errorBox.textContent = "";
+      try {
+        await api("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: document.querySelector("#password").value })
+        });
+        login.hidden = true;
+        app.hidden = false;
+        await refresh();
+      } catch (error) {
+        errorBox.textContent = error.message;
+      }
+    });
+
+    document.querySelector("#controls").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      try {
+        await api("/api/iniciar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ youtube_url: document.querySelector("#url").value })
+        });
+        await refresh();
+      } catch (error) {
+        errorBox.textContent = error.message;
+      }
+    });
+
+    document.querySelector("#stop").addEventListener("click", async () => {
+      await api("/api/parar", { method: "POST" });
+      await refresh();
+    });
+
+    document.querySelector("#manual").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const phrase = document.querySelector("#phrase");
+      await api("/api/checar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: phrase.value })
+      });
+      phrase.value = "";
+      await refresh();
+    });
+
+    function render(state) {
+      document.querySelector("#url").value = state.youtube_url || document.querySelector("#url").value;
+      document.querySelector("#status").textContent = state.running ? "ouvindo a live" : "parado";
+      errorBox.textContent = state.last_error || "";
+      document.querySelector("#segments").innerHTML = state.segments.length
+        ? state.segments.map((row) => `<article class="chunk"><p>${escapeHtml(row.text)}</p><p class="meta">${escapeHtml(row.created_at)}</p></article>`).join("")
+        : `<p class="meta">A transcrição aparece aqui depois que a live começa a ser ouvida.</p>`;
+      document.querySelector("#claims").innerHTML = state.claims.length
+        ? state.claims.map(renderClaim).join("")
+        : `<p class="meta">Nenhuma frase checável do Lula ainda.</p>`;
+    }
+
+    function renderClaim(claim) {
+      const label = labels[claim.status] || claim.status;
+      const sources = (claim.sources || []).map((source) =>
+        `<li><a href="${escapeHtml(source.url)}" target="_blank" rel="noreferrer">${escapeHtml(source.title)}</a> — ${escapeHtml(source.note || "")}</li>`
+      ).join("");
+      return `<article class="claim">
+        <span class="chip ${escapeHtml(claim.status)}">${escapeHtml(label)}</span>
+        <p><strong>${escapeHtml(claim.normalized)}</strong></p>
+        <p class="meta">Ouvido: ${escapeHtml(claim.quote)} · ${claim.origin === "manual" ? "cola manual" : "live"} · confiança ${Math.round((claim.confidence || 0) * 100)}%</p>
+        <p>${escapeHtml(claim.summary || "")}</p>
+        ${claim.missing ? `<p class="meta">${escapeHtml(claim.missing)}</p>` : ""}
+        ${sources ? `<ul>${sources}</ul>` : ""}
+      </article>`;
+    }
+
+    function escapeHtml(value) {
+      return String(value || "").replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[char]));
+    }
+
+    async function refresh() {
+      if (app.hidden) return;
+      try {
+        render(await api("/api/estado"));
+      } catch (error) {
+        if (error.message !== "faça login") errorBox.textContent = error.message;
+      }
+    }
+
+    setInterval(refresh, 3000);
+    refresh();
+  </script>
+</body>
+</html>
