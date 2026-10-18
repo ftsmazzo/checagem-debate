@@ -13,6 +13,7 @@ from sqlalchemy import delete, select
 from app.db import Claim, RunState, Segment, claim_dict, init_db, ping, session, utcnow
 from app.listener import (
     PRESETS,
+    collapse_pending_queue,
     cookies_loaded,
     enqueue_manual,
     get_listener,
@@ -29,6 +30,7 @@ STATIC = Path(__file__).parent / "static"
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     init_db()
+    collapse_pending_queue()
     yield
 
 
@@ -181,6 +183,12 @@ def zerar(request: Request) -> dict:
             state.updated_at = utcnow()
         db.commit()
     return {"ok": True}
+
+
+@app.post("/api/reprocessar")
+def reprocessar(request: Request) -> dict:
+    authorized(request)
+    return collapse_pending_queue()
 
 
 @app.get("/")

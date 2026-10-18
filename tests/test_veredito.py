@@ -57,7 +57,7 @@ class VerdictTests(unittest.TestCase):
 
     def test_contexto_ie_vazio(self):
         text = format_context({"enabled": True, "itens": []})
-        self.assertIn("sem trecho útil", text)
+        self.assertEqual(text, "")
 
     def test_erro_de_robo_sem_cookie(self):
         message = explain_audio_error("Sign in to confirm you're not a bot")

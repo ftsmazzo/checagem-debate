@@ -2,6 +2,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 import subprocess
 import threading
 import time
@@ -117,7 +118,11 @@ def is_youtube(url: str) -> bool:
 
 def _fingerprint(text: str) -> str:
     folded = " ".join(text.casefold().split())
-    return hashlib.sha256(folded.encode("utf-8")).hexdigest()
+    folded = re.sub(r"[^a-z0-9à-ü\s]", "", folded)
+    folded = re.sub(r"\s+", " ", folded).strip()
+    # Agrupa paráfrases quase iguais (mesma notícia repetida no áudio).
+    key = folded[:160]
+    return hashlib.sha256(key.encode("utf-8")).hexdigest()
 
 
 class DebateListener:
@@ -350,6 +355,17 @@ class DebateListener:
     def _check_loop(self) -> None:
         while True:
             with session() as db:
+                # Retoma itens travados em processando há mais de 3 minutos.
+                stuck = list(
+                    db.scalars(
+                        select(Claim).where(Claim.status == "processando").order_by(Claim.id)
+                    )
+                )
+                for row in stuck:
+                    age = (utcnow() - row.created_at).total_seconds() if row.created_at else 9999
+                    if age > 180:
+                        row.status = "pendente"
+                db.commit()
                 row = db.scalars(
                     select(Claim).where(Claim.status == "pendente").order_by(Claim.id).limit(1)
                 ).first()
@@ -359,6 +375,8 @@ class DebateListener:
                     claim_id = row.id
                     quote = row.quote
                     normalized = row.normalized
+                    row.status = "processando"
+                    db.commit()
             if claim_id is None:
                 time.sleep(1)
                 continue
@@ -378,7 +396,7 @@ class DebateListener:
                 self._set_state(None, None, f"checagem: {exc}")
             with session() as db:
                 current = db.get(Claim, claim_id)
-                if current and current.status == "pendente":
+                if current and current.status in {"pendente", "processando"}:
                     current.status = status
                     current.summary = summary
                     current.missing = missing
@@ -418,6 +436,40 @@ def enqueue_manual(text: str) -> int:
 
 def _ensure_checker() -> None:
     get_listener().ensure_checker()
+
+
+def collapse_pending_queue() -> dict:
+    """Libera a fila: retoma processando e descarta paráfrases repetidas."""
+    kept = 0
+    dropped = 0
+    with session() as db:
+        rows = list(
+            db.scalars(
+                select(Claim)
+                .where(Claim.status.in_(("pendente", "processando")))
+                .order_by(Claim.id)
+            )
+        )
+        seen: set[str] = set()
+        for row in rows:
+            key = " ".join((row.normalized or "").casefold().split())[:100]
+            if key in seen:
+                row.status = "erro"
+                row.summary = "duplicata na fila — mesma afirmação já estava em checagem"
+                row.confidence = 0
+                dropped += 1
+            else:
+                seen.add(key)
+                if row.status == "processando":
+                    row.status = "pendente"
+                kept += 1
+        state = db.get(RunState, 1)
+        if state:
+            state.last_error = ""
+            state.updated_at = utcnow()
+        db.commit()
+    _ensure_checker()
+    return {"kept": kept, "dropped": dropped}
 
 
 def transcribe_mp3(path: Path) -> str:

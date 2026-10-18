@@ -51,12 +51,12 @@ class Settings:
 
     @property
     def search_model(self) -> str:
-        return os.environ.get(
-            "OPENROUTER_SEARCH_MODEL", "perplexity/sonar-pro-search"
-        ).strip()
+        # Vazio = pula a pesquisa prévia e vai direto no modelo de veredito.
+        return os.environ.get("OPENROUTER_SEARCH_MODEL", "").strip()
 
     @property
     def fact_model(self) -> str:
+        # Sonnet 4.6 + plugin web (mais estável que o 5.5, que estava estourando 500).
         return os.environ.get(
             "OPENROUTER_FACT_MODEL", "anthropic/claude-sonnet-4.6"
         ).strip()

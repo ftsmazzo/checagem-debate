@@ -159,23 +159,30 @@ def chat_completion(
     }
     if plugins:
         body["plugins"] = plugins
-    with httpx.Client(timeout=timeout) as client:
-        response = client.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers=_headers(),
-            json=body,
-        )
-        if response.is_error:
-            detail = ""
-            try:
-                err = response.json().get("error") or {}
-                detail = str(err.get("message") or err)
-            except Exception:
-                detail = response.text[:300]
-            raise _openrouter_error(
-                response.status_code, model, detail or response.reason_phrase
+    last_error: Exception | None = None
+    for attempt in range(2):
+        with httpx.Client(timeout=timeout) as client:
+            response = client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers=_headers(),
+                json=body,
             )
-        return response.json()
+            if response.is_error:
+                detail = ""
+                try:
+                    err = response.json().get("error") or {}
+                    detail = str(err.get("message") or err)
+                except Exception:
+                    detail = response.text[:300]
+                last_error = _openrouter_error(
+                    response.status_code, model, detail or response.reason_phrase
+                )
+                if response.status_code >= 500 and attempt == 0:
+                    continue
+                raise last_error
+            return response.json()
+    assert last_error is not None
+    raise last_error
 
 
 def message_text(payload: dict) -> str:
@@ -254,12 +261,19 @@ def attach_citations(data: dict, extra: list[dict]) -> dict:
     return merged
 
 
-def web_plugins() -> list[dict]:
+def uses_native_search(model: str) -> bool:
+    mid = (model or "").lower()
+    return mid.startswith("perplexity/") or mid.endswith(":online")
+
+
+def web_plugins() -> list[dict] | None:
+    if uses_native_search(settings.fact_model):
+        return None
     return [
         {
             "id": "web",
             "engine": "perplexity",
-            "max_results": 8,
+            "max_results": 5,
             "search_prompt": (
                 "Resultados de busca em {date}. Priorize fontes oficiais brasileiras "
                 "(gov.br, IBGE, INEP, TSE, Portal da Transparência) e cite com links https."
@@ -273,7 +287,7 @@ def extract_claims(transcript: str) -> list[dict]:
         settings.extract_model,
         EXTRACT_SYSTEM,
         transcript[-6000:],
-        timeout=45,
+        timeout=35,
     )
     found = []
     for item in data.get("claims") or []:
@@ -287,16 +301,18 @@ def extract_claims(transcript: str) -> list[dict]:
         if len(claim) < 12 or len(quote) < 8:
             continue
         found.append({"quote": quote[:500], "claim": claim[:400]})
-    return found[:4]
+    return found[:2]
 
 
 def _search_brief(quote: str, claim: str) -> dict:
+    if not settings.search_model:
+        return {"findings": "", "sources": [], "raw": ""}
     try:
         payload = chat_completion(
             settings.search_model,
             SEARCH_BRIEF_SYSTEM,
             f"Frase ouvida:\n{quote}\n\nAfirmação:\n{claim}",
-            timeout=90,
+            timeout=45,
         )
         data = attach_citations(
             parse_json(message_text(payload)), citation_sources(payload)
@@ -311,22 +327,27 @@ def _search_brief(quote: str, claim: str) -> dict:
 
 
 def verify_claim(quote: str, claim: str) -> dict:
+    ie_bundle = {"enabled": False, "itens": []}
+    try:
+        ie_bundle = ie_mcp.gather_context(quote, claim)
+    except Exception:
+        ie_bundle = {"enabled": False, "itens": []}
+
     brief = _search_brief(quote, claim)
-    ie_bundle = ie_mcp.gather_context(quote, claim)
     brief_block = ""
     if brief["findings"] or brief["sources"]:
         brief_block = (
-            "\n\nPesquisa prévia (Sonar Pro Search):\n"
+            "\n\nPesquisa prévia:\n"
             + (brief["findings"] or brief["raw"] or "(sem resumo)")
             + "\nFontes já vistas:\n"
-            + json.dumps(brief["sources"][:8], ensure_ascii=False)
+            + json.dumps(brief["sources"][:6], ensure_ascii=False)
         )
     ie_block = ie_mcp.format_context(ie_bundle)
     payload = chat_completion(
         settings.fact_model,
         VERIFY_SYSTEM,
         f"Frase ouvida:\n{quote}\n\nAfirmação a checar:\n{claim}{brief_block}{ie_block}",
-        timeout=120,
+        timeout=75,
         plugins=web_plugins(),
     )
     data = attach_citations(parse_json(message_text(payload)), citation_sources(payload))

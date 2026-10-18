@@ -1,9 +1,10 @@
-"""Cliente do MCP Inteligência Eleitoral (somente leitura)."""
+"""Cliente do MCP Inteligência Eleitoral (somente leitura, rápido)."""
 
 from __future__ import annotations
 
 import json
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
 import httpx
@@ -31,7 +32,7 @@ def _headers() -> dict[str, str]:
     }
 
 
-def _rpc(method: str, params: dict | None = None, timeout: float = 45) -> dict:
+def _rpc(method: str, params: dict | None = None, timeout: float = 20) -> dict:
     body: dict[str, Any] = {"jsonrpc": "2.0", "id": _next_id(), "method": method}
     if params is not None:
         body["params"] = params
@@ -52,21 +53,20 @@ def _ensure_session() -> None:
             "capabilities": {},
             "clientInfo": {"name": "checagem-debate", "version": "1.0"},
         },
-        timeout=30,
+        timeout=12,
     )
     try:
-        body = {
-            "jsonrpc": "2.0",
-            "method": "notifications/initialized",
-        }
-        with httpx.Client(timeout=15) as client:
-            client.post(settings.ie_mcp_url, headers=_headers(), json=body)
+        with httpx.Client(timeout=8) as client:
+            client.post(
+                settings.ie_mcp_url,
+                headers=_headers(),
+                json={"jsonrpc": "2.0", "method": "notifications/initialized"},
+            )
     except Exception:
         pass
 
 
-def call_tool(name: str, arguments: dict, timeout: float = 45) -> Any:
-    _ensure_session()
+def call_tool(name: str, arguments: dict, timeout: float = 18) -> Any:
     result = _rpc(
         "tools/call",
         {"name": name, "arguments": arguments},
@@ -99,48 +99,52 @@ def _safe(name: str, arguments: dict) -> dict:
 
 def _topic(text: str) -> str:
     cleaned = re.sub(r"\s+", " ", text or "").strip()
-    return cleaned[:220]
+    return cleaned[:180]
 
 
 def gather_context(quote: str, claim: str) -> dict:
-    """Puxa fato/fake, plano, cifras e urna relevantes para a frase."""
+    """Puxa só o essencial do acervo IE, com orçamento curto."""
     if not enabled():
         return {"enabled": False, "itens": []}
 
     query = _topic(f"{claim} {quote}")
-    results: list[dict] = []
-
-    results.append(_safe("fato_fake", {"query": query, "limite": 6}))
-    results.append(
-        _safe(
+    jobs = [
+        ("fato_fake", {"query": query, "limite": 4}),
+        (
             "acervo_nacional",
             {
                 "query": query,
                 "nm_candidato": "Lula",
                 "ano_eleicao": 2022,
-                "limite": 4,
+                "limite": 3,
             },
-        )
-    )
-    results.append(_safe("plano_governo", {"query": query, "limite": 3}))
-
+        ),
+    ]
     lower = query.lower()
     if any(word in lower for word in ("bolsa", "benefício", "beneficio", "auxílio", "auxilio")):
-        results.append(_safe("bolsa_familia", {}))
-        results.append(_safe("cadunico", {}))
-    if any(word in lower for word in ("pib", "economia", "renda")):
-        results.append(_safe("pib", {}))
-    if any(word in lower for word in ("população", "populacao", "habitante", "morador")):
-        results.append(_safe("populacao", {}))
-    if any(word in lower for word in ("voto", "urna", "eleito", "turno", "percentual")):
-        results.append(
-            _safe(
-                "votacao",
-                {"ano": 2022, "cargo": "presidente", "turno": 2},
-            )
-        )
-    if any(word in lower for word in ("estratégia", "estrategia", "narrativa", "ataque")):
-        results.append(_safe("estrategias", {"query": query, "limite": 4}))
+        jobs.append(("bolsa_familia", {}))
+    if any(word in lower for word in ("voto", "urna", "eleito", "turno")):
+        jobs.append(("votacao", {"ano": 2022, "cargo": "presidente", "turno": 2}))
+
+    try:
+        _ensure_session()
+    except Exception as exc:
+        return {
+            "enabled": True,
+            "itens": [],
+            "aviso": f"IE indisponível agora: {exc}"[:200],
+        }
+
+    results: list[dict] = []
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        futures = {
+            pool.submit(_safe, name, args): name for name, args in jobs[:4]
+        }
+        for future in as_completed(futures, timeout=22):
+            try:
+                results.append(future.result())
+            except Exception:
+                continue
 
     useful = []
     for item in results:
@@ -155,12 +159,10 @@ def gather_context(quote: str, claim: str) -> dict:
         "enabled": True,
         "fonte": "Inteligência Eleitoral MCP",
         "aviso": (
-            "Material de campanha e cifras oficiais do acervo IE. "
-            "Cifra TSE/IBGE/gov vale como evidência. "
-            "Texto de estratégia ou plano da campanha Flávio é referência narrativa, "
-            "não prova independente sobre Lula."
+            "Cifra TSE/IBGE/gov do acervo IE conta como evidência. "
+            "Texto de estratégia/plano da campanha Flávio é só referência narrativa."
         ),
-        "itens": useful[:8],
+        "itens": useful[:6],
     }
 
 
@@ -168,12 +170,10 @@ def format_context(bundle: dict) -> str:
     if not bundle.get("enabled"):
         return ""
     if not bundle.get("itens"):
-        return (
-            "\n\nAcervo Inteligência Eleitoral: consultado, sem trecho útil para esta frase."
-        )
+        return ""
     compact = {
         "aviso": bundle.get("aviso"),
         "itens": bundle.get("itens"),
     }
     text = json.dumps(compact, ensure_ascii=False)
-    return "\n\nContexto Inteligência Eleitoral (MCP):\n" + text[:7000]
+    return "\n\nContexto Inteligência Eleitoral (MCP):\n" + text[:5000]
