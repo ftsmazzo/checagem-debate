@@ -65,7 +65,30 @@ class ManualBody(BaseModel):
 @app.get("/health")
 def health() -> dict:
     ping()
-    return {"ok": True}
+    key = settings.openrouter_key
+    openrouter = {"key_len": len(key), "key_suffix": key[-4:] if len(key) >= 4 else ""}
+    if key:
+        try:
+            import httpx
+
+            response = httpx.get(
+                "https://openrouter.ai/api/v1/auth/key",
+                headers={"Authorization": f"Bearer {key}"},
+                timeout=15,
+            )
+            openrouter["auth_status"] = response.status_code
+            if response.status_code == 200:
+                openrouter["auth_ok"] = True
+            else:
+                openrouter["auth_ok"] = False
+                openrouter["auth_detail"] = (response.text or "")[:120]
+        except Exception as exc:
+            openrouter["auth_ok"] = False
+            openrouter["auth_detail"] = str(exc)[:120]
+    else:
+        openrouter["auth_ok"] = False
+        openrouter["auth_detail"] = "chave ausente"
+    return {"ok": True, "openrouter": openrouter, "fact_model": settings.fact_model}
 
 
 @app.post("/api/login")
