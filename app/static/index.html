@@ -255,7 +255,8 @@
       if (state.youtube_url) urlInput.value = state.youtube_url;
       else if (!urlInput.value) urlInput.value = bandnews;
       fonte.value = (urlInput.value || "").includes("BANDNEWSFM") ? "bandnews_sp" : "custom";
-      document.querySelector("#status").textContent = state.running ? "ouvindo a BandNews" : "parado";
+      const ie = state.ie_mcp ? " · IE ligada" : "";
+      document.querySelector("#status").textContent = (state.running ? "ouvindo a BandNews" : "parado") + ie;
       errorBox.textContent = state.last_error || "";
       latestSegments = state.segments || [];
       const alive = new Set(latestSegments.map((row) => row.id));

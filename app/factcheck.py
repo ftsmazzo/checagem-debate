@@ -3,6 +3,7 @@ import re
 
 import httpx
 
+from app import ie_mcp
 from app.settings import settings
 
 ALLOWED = {
@@ -49,7 +50,8 @@ Regras:
 - status sem_evidencia: a busca não achou fonte suficiente. Não chute.
 - status inconclusivo: fontes divergem ou a frase depende de definição (qual governo, município, o que conta como creche).
 - Prefira IBGE, INEP, Portal da Transparência, gov.br, TSE, Senado, Câmara e séries oficiais. Agência de checagem (Lupa, Aos Fatos, Estadão Verifica) é secundária e deve ser nomeada.
-- Toda url tem de ser https e tem de ter saído da busca ou das citações. Não invente url.
+- Se houver bloco Inteligência Eleitoral: cifras TSE/IBGE/CadÚnico/Bolsa Família desse bloco contam como evidência oficial. Trechos de fato_fake do acervo ajudam, mas cite a fonte. Plano/estratégia da campanha Flávio é contexto narrativo, não prova contra ou a favor de Lula.
+- Toda url tem de ser https e tem de ter saído da busca, das citações ou do acervo IE. Não invente url.
 - Se a frase não diz o período, registre em missing e não marque sustentado só porque um número parecido existe em outro ano.
 - Não use a palavra fake. Não escreva texto de campanha.
 - confidence alto (>=0.7) só com fonte oficial ou duas fontes independentes apontando o mesmo sentido."""
@@ -310,6 +312,7 @@ def _search_brief(quote: str, claim: str) -> dict:
 
 def verify_claim(quote: str, claim: str) -> dict:
     brief = _search_brief(quote, claim)
+    ie_bundle = ie_mcp.gather_context(quote, claim)
     brief_block = ""
     if brief["findings"] or brief["sources"]:
         brief_block = (
@@ -318,13 +321,29 @@ def verify_claim(quote: str, claim: str) -> dict:
             + "\nFontes já vistas:\n"
             + json.dumps(brief["sources"][:8], ensure_ascii=False)
         )
+    ie_block = ie_mcp.format_context(ie_bundle)
     payload = chat_completion(
         settings.fact_model,
         VERIFY_SYSTEM,
-        f"Frase ouvida:\n{quote}\n\nAfirmação a checar:\n{claim}{brief_block}",
+        f"Frase ouvida:\n{quote}\n\nAfirmação a checar:\n{claim}{brief_block}{ie_block}",
         timeout=120,
         plugins=web_plugins(),
     )
     data = attach_citations(parse_json(message_text(payload)), citation_sources(payload))
     data = attach_citations(data, brief["sources"])
+    ie_sources = []
+    for item in ie_bundle.get("itens") or []:
+        for row in item.get("itens") or []:
+            if not isinstance(row, dict):
+                continue
+            url = str(row.get("fonte") or row.get("url") or "").strip()
+            if url.startswith("https://"):
+                ie_sources.append(
+                    {
+                        "title": str(row.get("titulo") or url)[:180],
+                        "url": url,
+                        "note": f"IE/{item.get('tool')}: {str(row.get('trecho') or '')[:180]}",
+                    }
+                )
+    data = attach_citations(data, ie_sources)
     return sanitize_verdict(data)

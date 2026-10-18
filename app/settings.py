@@ -80,5 +80,16 @@ class Settings:
             "https://checagem-debate-app.kxryyk.easypanel.host",
         ).strip()
 
+    @property
+    def ie_mcp_url(self) -> str:
+        return os.environ.get(
+            "IE_MCP_URL",
+            "https://inteligencia-eleitoral-api.se860g.easypanel.host/v1/mcp",
+        ).strip()
+
+    @property
+    def ie_mcp_token(self) -> str:
+        return _secret("IE_MCP_TOKEN")
+
 
 settings = Settings()

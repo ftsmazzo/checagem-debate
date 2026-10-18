@@ -19,6 +19,7 @@ from app.listener import (
     resolve_stream,
     running_flag,
 )
+from app import ie_mcp
 from app.settings import settings
 
 sessions: set[str] = set()
@@ -121,6 +122,7 @@ def estado(request: Request) -> dict:
         "youtube_url": state.youtube_url if state else settings.youtube_default,
         "last_error": state.last_error if state else "",
         "cookies_loaded": cookies_loaded(),
+        "ie_mcp": ie_mcp.enabled(),
         "presets": {
             "bandnews_sp": PRESETS["bandnews_sp"],
         },
@@ -176,7 +178,7 @@ def zerar(request: Request) -> dict:
             state.running = 0
             state.last_error = ""
             state.youtube_url = settings.youtube_default
-            state.updated_at = state.updated_at
+            state.updated_at = utcnow()
         db.commit()
     return {"ok": True}
 
