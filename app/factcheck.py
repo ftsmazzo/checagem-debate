@@ -333,6 +333,7 @@ def verify_claim(quote: str, claim: str) -> dict:
     except Exception:
         ie_bundle = {"enabled": False, "itens": []}
 
+    # Pesquisa prévia opcional; por padrão a fila usa só o Sonnet 4.6 + web.
     brief = _search_brief(quote, claim)
     brief_block = ""
     if brief["findings"] or brief["sources"]:

@@ -136,15 +136,21 @@ def gather_context(quote: str, claim: str) -> dict:
         }
 
     results: list[dict] = []
-    with ThreadPoolExecutor(max_workers=3) as pool:
+    pool = ThreadPoolExecutor(max_workers=3)
+    try:
         futures = {
             pool.submit(_safe, name, args): name for name, args in jobs[:4]
         }
-        for future in as_completed(futures, timeout=22):
+        for future in as_completed(futures, timeout=12):
             try:
-                results.append(future.result())
+                results.append(future.result(timeout=1))
             except Exception:
                 continue
+    except TimeoutError:
+        pass
+    finally:
+        # Não esperar tools lentas: wait=True travava a fila de checagem inteira.
+        pool.shutdown(wait=False, cancel_futures=True)
 
     useful = []
     for item in results:

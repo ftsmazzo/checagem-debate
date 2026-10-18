@@ -361,11 +361,11 @@ class DebateListener:
                         select(Claim).where(Claim.status == "processando").order_by(Claim.id)
                     )
                 )
+                # Qualquer processando antigo volta para a fila (evita item eterno).
                 for row in stuck:
-                    age = (utcnow() - row.created_at).total_seconds() if row.created_at else 9999
-                    if age > 180:
-                        row.status = "pendente"
-                db.commit()
+                    row.status = "pendente"
+                if stuck:
+                    db.commit()
                 row = db.scalars(
                     select(Claim).where(Claim.status == "pendente").order_by(Claim.id).limit(1)
                 ).first()
