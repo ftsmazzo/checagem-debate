@@ -348,7 +348,7 @@ def verify_claim(quote: str, claim: str) -> dict:
         settings.fact_model,
         VERIFY_SYSTEM,
         f"Frase ouvida:\n{quote}\n\nAfirmação a checar:\n{claim}{brief_block}{ie_block}",
-        timeout=75,
+        timeout=60,
         plugins=web_plugins(),
     )
     data = attach_citations(parse_json(message_text(payload)), citation_sources(payload))

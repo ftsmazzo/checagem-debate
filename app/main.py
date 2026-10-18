@@ -191,6 +191,49 @@ def reprocessar(request: Request) -> dict:
     return collapse_pending_queue()
 
 
+@app.post("/api/checar-agora")
+def checar_agora(request: Request) -> dict:
+    """Processa uma pendente na hora, para destravar e diagnosticar."""
+    authorized(request)
+    from app.factcheck import verify_claim
+
+    with session() as db:
+        row = db.scalars(
+            select(Claim).where(Claim.status.in_(("pendente", "processando"))).order_by(Claim.id).limit(1)
+        ).first()
+        if row is None:
+            return {"ok": True, "done": False, "message": "fila vazia"}
+        claim_id = row.id
+        quote = row.quote
+        normalized = row.normalized
+        row.status = "processando"
+        db.commit()
+    try:
+        verdict = verify_claim(quote, normalized)
+        status = verdict["status"]
+        summary = verdict["summary"]
+        missing = verdict["missing"]
+        confidence = verdict["confidence"]
+        sources = __import__("json").dumps(verdict["sources"], ensure_ascii=False)
+    except Exception as exc:
+        status = "erro"
+        summary = str(exc)[:800]
+        missing = ""
+        confidence = 0
+        sources = "[]"
+    with session() as db:
+        current = db.get(Claim, claim_id)
+        if current:
+            current.status = status
+            current.summary = summary
+            current.missing = missing
+            current.confidence = confidence
+            current.sources_json = sources
+            db.commit()
+    get_listener().ensure_checker()
+    return {"ok": True, "done": True, "id": claim_id, "status": status, "summary": summary[:240]}
+
+
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(STATIC / "index.html")

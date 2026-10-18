@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import re
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
 import httpx
@@ -66,7 +65,7 @@ def _ensure_session() -> None:
         pass
 
 
-def call_tool(name: str, arguments: dict, timeout: float = 18) -> Any:
+def call_tool(name: str, arguments: dict, timeout: float = 10) -> Any:
     result = _rpc(
         "tools/call",
         {"name": name, "arguments": arguments},
@@ -103,28 +102,23 @@ def _topic(text: str) -> str:
 
 
 def gather_context(quote: str, claim: str) -> dict:
-    """Puxa só o essencial do acervo IE, com orçamento curto."""
+    """Puxa só o essencial do acervo IE, em série e com teto duro de tempo."""
     if not enabled():
         return {"enabled": False, "itens": []}
 
     query = _topic(f"{claim} {quote}")
     jobs = [
-        ("fato_fake", {"query": query, "limite": 4}),
+        ("fato_fake", {"query": query, "limite": 3}),
         (
             "acervo_nacional",
             {
                 "query": query,
                 "nm_candidato": "Lula",
                 "ano_eleicao": 2022,
-                "limite": 3,
+                "limite": 2,
             },
         ),
     ]
-    lower = query.lower()
-    if any(word in lower for word in ("bolsa", "benefício", "beneficio", "auxílio", "auxilio")):
-        jobs.append(("bolsa_familia", {}))
-    if any(word in lower for word in ("voto", "urna", "eleito", "turno")):
-        jobs.append(("votacao", {"ano": 2022, "cargo": "presidente", "turno": 2}))
 
     try:
         _ensure_session()
@@ -135,22 +129,10 @@ def gather_context(quote: str, claim: str) -> dict:
             "aviso": f"IE indisponível agora: {exc}"[:200],
         }
 
+    # Série curta: evita ThreadPoolExecutor.wait travando a fila.
     results: list[dict] = []
-    pool = ThreadPoolExecutor(max_workers=3)
-    try:
-        futures = {
-            pool.submit(_safe, name, args): name for name, args in jobs[:4]
-        }
-        for future in as_completed(futures, timeout=12):
-            try:
-                results.append(future.result(timeout=1))
-            except Exception:
-                continue
-    except TimeoutError:
-        pass
-    finally:
-        # Não esperar tools lentas: wait=True travava a fila de checagem inteira.
-        pool.shutdown(wait=False, cancel_futures=True)
+    for name, args in jobs:
+        results.append(_safe(name, args))
 
     useful = []
     for item in results:
@@ -168,7 +150,7 @@ def gather_context(quote: str, claim: str) -> dict:
             "Cifra TSE/IBGE/gov do acervo IE conta como evidência. "
             "Texto de estratégia/plano da campanha Flávio é só referência narrativa."
         ),
-        "itens": useful[:6],
+        "itens": useful[:4],
     }
 
 
