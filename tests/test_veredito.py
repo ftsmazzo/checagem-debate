@@ -38,7 +38,7 @@ class VerdictTests(unittest.TestCase):
 
     def test_erro_de_robo_com_cookie(self):
         message = explain_audio_error("Sign in to confirm you're not a bot", has_cookies=True)
-        self.assertIn("recusou", message)
+        self.assertIn("BandNews FM SP", message)
 
     def test_filtra_so_youtube(self):
         raw = "\n".join(

@@ -391,6 +391,8 @@ def enqueue_manual(text: str) -> int:
     cleaned = " ".join(text.split())
     if len(cleaned) < 12:
         raise ValueError("escreva a frase completa")
+    if len(cleaned) > 4000:
+        cleaned = cleaned[:4000]
     with session() as db:
         row = Claim(
             quote=cleaned[:500],
