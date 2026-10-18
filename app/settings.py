@@ -24,7 +24,7 @@ class Settings:
         "OPENROUTER_EXTRACT_MODEL", "anthropic/claude-haiku-4.5"
     ).strip()
     fact_model = os.environ.get(
-        "OPENROUTER_FACT_MODEL", "perplexity/sonar-pro"
+        "OPENROUTER_FACT_MODEL", "perplexity/sonar"
     ).strip()
     chunk_seconds = _int("CHUNK_SECONDS", 12)
     youtube_cookies = os.environ.get("YOUTUBE_COOKIES", "").strip()

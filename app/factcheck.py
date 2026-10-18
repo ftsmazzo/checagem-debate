@@ -130,7 +130,16 @@ def chat_completion(model: str, system: str, user: str, timeout: float) -> dict:
             headers=_headers(),
             json=body,
         )
-        response.raise_for_status()
+        if response.is_error:
+            detail = ""
+            try:
+                err = response.json().get("error") or {}
+                detail = str(err.get("message") or err)
+            except Exception:
+                detail = response.text[:300]
+            raise RuntimeError(
+                f"OpenRouter {response.status_code} no modelo {model}: {detail or response.reason_phrase}"
+            )
         return response.json()
 
 
