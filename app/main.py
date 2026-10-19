@@ -1,7 +1,10 @@
 import hashlib
 import hmac
+import re
 import secrets
+import unicodedata
 from contextlib import asynccontextmanager
+from datetime import date
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Request, Response
@@ -10,7 +13,20 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
 
-from app.db import Claim, RunState, Segment, claim_dict, init_db, ping, session, utcnow
+from app.db import (
+    SCORE_BASE,
+    SCORE_SPEAKERS,
+    Claim,
+    Debate,
+    RunState,
+    Segment,
+    claim_dict,
+    init_db,
+    mentira_percent,
+    ping,
+    session,
+    utcnow,
+)
 from app.listener import (
     PRESETS,
     collapse_pending_queue,
@@ -63,6 +79,16 @@ class StartBody(BaseModel):
 
 class ManualBody(BaseModel):
     text: str = Field(min_length=12, max_length=4000)
+    speaker: str = Field(default="avulsa", max_length=16)
+
+
+class DebateBody(BaseModel):
+    title: str = Field(min_length=3, max_length=160)
+    slug: str = Field(default="", max_length=80)
+
+
+SPEAKER_LABEL = {"lula": "Lula", "flavio": "Flávio Bolsonaro"}
+RESOLVED = ("sustentado", "contradito", "exagerado", "sem_evidencia", "inconclusivo")
 
 
 @app.get("/health")
@@ -157,6 +183,7 @@ def estado(request: Request) -> dict:
             )
         )
         claims = done + queue + errors
+        active = _debate_brief(db, state.active_debate_id if state else None)
     return {
         "running": bool(state.running) if state else False,
         "youtube_url": state.youtube_url if state else settings.youtube_default,
@@ -165,6 +192,7 @@ def estado(request: Request) -> dict:
         "ie_mcp": ie_mcp.enabled(),
         "queue": {"done": len(done), "pending": len(queue), "erro": len(errors)},
         "segments_total": segments_total,
+        "active_debate": active,
         "presets": {
             "bandnews_sp": PRESETS["bandnews_sp"],
         },
@@ -202,7 +230,7 @@ def parar(request: Request) -> dict:
 def checar(body: ManualBody, request: Request) -> dict:
     authorized(request)
     try:
-        claim_id = enqueue_manual(body.text)
+        claim_id = enqueue_manual(body.text, speaker=body.speaker)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"id": claim_id}
@@ -214,7 +242,9 @@ def zerar(request: Request) -> dict:
     authorized(request)
     get_listener().halt()
     with session() as db:
-        db.execute(delete(Claim))
+        db.execute(
+            delete(Claim).where(Claim.status.in_(("pendente", "processando", "erro")))
+        )
         state = db.get(RunState, 1)
         if state:
             state.running = 0
@@ -326,9 +356,128 @@ def checar_agora(request: Request) -> dict:
     return {"ok": True, "done": True, "id": claim_id, "status": status, "summary": summary[:240]}
 
 
+def _slugify(value: str) -> str:
+    text = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
+    text = re.sub(r"[^a-z0-9]+", "-", text.casefold()).strip("-")
+    return (text or "debate")[:80]
+
+
+def _debate_brief(db, debate_id: int | None) -> dict | None:
+    if not debate_id:
+        return None
+    row = db.get(Debate, debate_id)
+    if row is None:
+        return None
+    return {
+        "id": row.id,
+        "slug": row.slug,
+        "title": row.title,
+        "held_on": row.held_on.isoformat() if row.held_on else "",
+    }
+
+
+def _debate_public(row: Debate, active_id: int | None) -> dict:
+    return {
+        "id": row.id,
+        "slug": row.slug,
+        "title": row.title,
+        "held_on": row.held_on.isoformat() if row.held_on else "",
+        "active": row.id == active_id,
+    }
+
+
+@app.get("/api/debates")
+def listar_debates(request: Request) -> dict:
+    authorized(request)
+    with session() as db:
+        state = db.get(RunState, 1)
+        active_id = state.active_debate_id if state else None
+        rows = list(db.scalars(select(Debate).order_by(Debate.id.desc())))
+        return {"debates": [_debate_public(row, active_id) for row in rows]}
+
+
+@app.post("/api/debates")
+def criar_debate(body: DebateBody, request: Request) -> dict:
+    authorized(request)
+    slug = _slugify(body.slug or body.title)
+    with session() as db:
+        if db.scalars(select(Debate).where(Debate.slug == slug)).first():
+            raise HTTPException(status_code=400, detail="já existe um debate com esse nome")
+        row = Debate(slug=slug, title=body.title.strip(), held_on=date.today(), rules="")
+        db.add(row)
+        db.flush()
+        state = db.get(RunState, 1)
+        if state:
+            state.active_debate_id = row.id
+            state.updated_at = utcnow()
+        db.commit()
+        return _debate_public(row, row.id)
+
+
+@app.get("/api/debates/{slug}/placar")
+def placar(slug: str, request: Request) -> dict:
+    authorized(request)
+    with session() as db:
+        debate = db.scalars(select(Debate).where(Debate.slug == slug)).first()
+        if debate is None:
+            raise HTTPException(status_code=404, detail="debate não encontrado")
+        cards = []
+        for speaker in SCORE_SPEAKERS:
+            grouped = db.execute(
+                select(Claim.status, func.count())
+                .where(
+                    Claim.debate_id == debate.id,
+                    Claim.speaker == speaker,
+                    Claim.status.in_(RESOLVED),
+                )
+                .group_by(Claim.status)
+            ).all()
+            counts = {status: 0 for status in RESOLVED}
+            for status, total in grouped:
+                if status in counts:
+                    counts[status] = int(total)
+            rows = list(
+                db.scalars(
+                    select(Claim)
+                    .where(
+                        Claim.debate_id == debate.id,
+                        Claim.speaker == speaker,
+                        Claim.status.in_(RESOLVED),
+                    )
+                    .order_by(Claim.id.desc())
+                    .limit(40)
+                )
+            )
+            shown = [claim_dict(row) for row in rows]
+            cards.append(
+                {
+                    "speaker": speaker,
+                    "nome": SPEAKER_LABEL[speaker],
+                    "counts": counts,
+                    "base": sum(counts[status] for status in SCORE_BASE),
+                    "mentira_percent": mentira_percent(counts),
+                    "claims": shown,
+                }
+            )
+        return {
+            "debate": {
+                "slug": debate.slug,
+                "title": debate.title,
+                "held_on": debate.held_on.isoformat() if debate.held_on else "",
+            },
+            "candidates": cards,
+            "formula": "contradito / (sustentado + contradito + exagerado)",
+        }
+
+
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(STATIC / "index.html")
+
+
+@app.get("/dashboard")
+def dashboard() -> FileResponse:
+    return FileResponse(STATIC / "dashboard.html")
 
 
 app.mount("/static", StaticFiles(directory=STATIC), name="static")

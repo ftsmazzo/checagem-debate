@@ -1,11 +1,20 @@
 import unittest
 
+from app.db import mentira_percent
 from app.factcheck import attach_citations, citation_sources, parse_json, sanitize_verdict
 from app.ie_mcp import format_context
 from app.listener import explain_audio_error, resolve_stream, youtube_cookie_text
 
 
 class VerdictTests(unittest.TestCase):
+    def test_percentual_de_mentira(self):
+        self.assertIsNone(mentira_percent({}))
+        self.assertIsNone(mentira_percent({"sem_evidencia": 4}))
+        self.assertEqual(
+            mentira_percent({"contradito": 1, "sustentado": 1, "exagerado": 2}),
+            25.0,
+        )
+
     def test_sem_fonte_nao_contradiz(self):
         verdict = sanitize_verdict(
             {"status": "contradito", "confidence": 0.9, "summary": "não achei", "sources": []}

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mentirômetro · IEleitoral</title>
+  <link rel="icon" type="image/png" href="/static/logo-ie.png">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f141c; --surface: #1a222f; --ink: #f2f4f8; --muted: #9aa6b8;
+      --line: #2c3648; --coral: #e8786a; --ok: #3dce8f; --warn: #e0a43a; --bad: #ff6b6b;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font-family: Montserrat, system-ui, sans-serif; }
+    header, main { width: min(1100px, calc(100% - 28px)); margin: 0 auto; }
+    header { display: flex; justify-content: space-between; align-items: center; padding: 28px 0 12px; }
+    a { color: var(--coral); font-weight: 800; text-decoration: none; }
+    h1 { margin: 0; font-size: 1.6rem; }
+    .kicker { margin: 0 0 4px; color: var(--coral); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
+    .login, .card, .phrase { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+    .login { display: flex; gap: 8px; max-width: 420px; }
+    input, select, button { font: inherit; border-radius: 10px; border: 1px solid var(--line); background: #222b3a; color: var(--ink); padding: 10px 12px; }
+    button { background: var(--coral); color: #1a1010; font-weight: 800; cursor: pointer; }
+    .bar { display: flex; gap: 8px; align-items: center; margin: 12px 0 18px; flex-wrap: wrap; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .pct { font-size: 2.4rem; font-weight: 800; margin: 8px 0; }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .counts { display: flex; gap: 10px; flex-wrap: wrap; font-size: 0.82rem; }
+    .phrase { margin-top: 10px; }
+    .phrase strong { display: block; margin-bottom: 6px; }
+    .chip { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+    .sustentado { color: var(--ok); } .contradito { color: var(--bad); } .exagerado { color: var(--warn); }
+    .error { color: var(--bad); }
+    @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <p class="kicker">IEleitoral</p>
+      <h1>Mentirômetro</h1>
+    </div>
+    <a href="/">Painel ao vivo</a>
+  </header>
+  <main>
+    <form id="login" class="login">
+      <input id="password" type="password" placeholder="Senha do painel" required>
+      <button type="submit">Entrar</button>
+    </form>
+    <div id="app" hidden>
+      <div class="bar">
+        <select id="debate"></select>
+        <button id="create" type="button">Novo debate</button>
+        <span id="formula" class="meta"></span>
+      </div>
+      <p id="error" class="error"></p>
+      <div id="cards" class="grid"></div>
+    </div>
+  </main>
+  <script>
+    const login = document.querySelector("#login");
+    const app = document.querySelector("#app");
+    const errorBox = document.querySelector("#error");
+    const labels = {
+      sustentado: "sustentado", contradito: "contradito", exagerado: "exagerado",
+      sem_evidencia: "sem evidência", inconclusivo: "inconclusivo"
+    };
+
+    async function api(path, options) {
+      const response = await fetch(path, { credentials: "same-origin", ...options });
+      const data = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        app.hidden = true;
+        login.hidden = false;
+        throw new Error("faça login");
+      }
+      if (!response.ok) throw new Error(data.detail || "falha na consulta");
+      return data;
+    }
+
+    function escapeHtml(value) {
+      return String(value || "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+    }
+
+    function card(item) {
+      const pct = item.mentira_percent == null ? "sem base" : item.mentira_percent.toLocaleString("pt-BR") + "%";
+      const note = item.base
+        ? `${item.counts.contradito} contraditas em ${item.base} com fonte`
+        : "Ainda não há veredito com fonte para este candidato.";
+      const counts = Object.entries(item.counts).map(([key, value]) => `<span>${labels[key]} ${value}</span>`).join("");
+      const phrases = (item.claims || []).map((row) => {
+        const source = (row.sources || [])[0];
+        const link = source ? `<a href="${escapeHtml(source.url)}" target="_blank" rel="noopener">${escapeHtml(source.title || "fonte")}</a>` : "";
+        return `<article class="phrase"><span class="chip ${row.status}">${labels[row.status] || row.status}</span><strong>${escapeHtml(row.normalized || row.quote)}</strong><p class="meta">${escapeHtml(row.summary || "")}</p>${link}</article>`;
+      }).join("");
+      return `<section class="card"><h2>${escapeHtml(item.nome)}</h2><p class="pct">${pct}</p><p class="meta">${note}</p><div class="counts">${counts}</div>${phrases}</section>`;
+    }
+
+    async function load(slug) {
+      const data = await api("/api/debates/" + encodeURIComponent(slug) + "/placar");
+      document.querySelector("#formula").textContent = data.formula || "";
+      document.querySelector("#cards").innerHTML = (data.candidates || []).map(card).join("");
+    }
+
+    async function refreshList(prefer) {
+      const data = await api("/api/debates");
+      const select = document.querySelector("#debate");
+      select.innerHTML = (data.debates || []).map((row) => `<option value="${escapeHtml(row.slug)}">${escapeHtml(row.title)}${row.active ? " · ativo" : ""}</option>`).join("");
+      const chosen = prefer || (data.debates || []).find((row) => row.active)?.slug || (data.debates || [])[0]?.slug;
+      if (chosen) {
+        select.value = chosen;
+        await load(chosen);
+      }
+    }
+
+    login.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      errorBox.textContent = "";
+      try {
+        await api("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: document.querySelector("#password").value })
+        });
+        login.hidden = true;
+        app.hidden = false;
+        await refreshList();
+      } catch (error) {
+        errorBox.textContent = error.message;
+      }
+    });
+
+    document.querySelector("#debate").addEventListener("change", async (event) => {
+      try { await load(event.target.value); } catch (error) { errorBox.textContent = error.message; }
+    });
+
+    document.querySelector("#create").addEventListener("click", async () => {
+      const title = window.prompt("Nome do próximo debate");
+      if (!title || title.trim().length < 3) return;
+      try {
+        const created = await api("/api/debates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: title.trim() })
+        });
+        await refreshList(created.slug);
+      } catch (error) {
+        errorBox.textContent = error.message;
+      }
+    });
+
+    api("/api/debates").then(async () => {
+      login.hidden = true;
+      app.hidden = false;
+      await refreshList();
+    }).catch(() => {});
+  </script>
+</body>
+</html>

@@ -331,7 +331,8 @@ class DebateListener:
         if len(folded) < 8 or any(noise in folded for noise in NOISE):
             return
         with session() as db:
-            db.add(Segment(text=text))
+            state = db.get(RunState, 1)
+            db.add(Segment(text=text, debate_id=state.active_debate_id if state else None))
             db.commit()
         self.context = (self.context + "\n" + text)[-8000:]
         self._enqueue_from_context()
@@ -352,6 +353,8 @@ class DebateListener:
             self._set_state(None, None, f"extração: {exc}")
             return
         with session() as db:
+            state = db.get(RunState, 1)
+            debate_id = state.active_debate_id if state else None
             for item in claims:
                 row = Claim(
                     quote=item["quote"],
@@ -359,6 +362,7 @@ class DebateListener:
                     fingerprint=_fingerprint(item["claim"]),
                     speaker="lula",
                     origin="live",
+                    debate_id=debate_id,
                     status="pendente",
                 )
                 db.add(row)
@@ -436,19 +440,24 @@ class DebateListener:
                     db.commit()
 
 
-def enqueue_manual(text: str) -> int:
+def enqueue_manual(text: str, speaker: str = "avulsa") -> int:
     cleaned = " ".join(text.split())
     if len(cleaned) < 12:
         raise ValueError("escreva a frase completa")
     if len(cleaned) > 4000:
         cleaned = cleaned[:4000]
+    who = (speaker or "avulsa").strip().lower()
+    if who not in {"lula", "flavio", "avulsa"}:
+        raise ValueError("pessoa desconhecida")
+    fingerprint = _fingerprint(f"manual:{who}:{cleaned}")
     with session() as db:
         row = Claim(
             quote=cleaned[:500],
             normalized=cleaned[:400],
-            fingerprint=_fingerprint("manual:" + cleaned),
-            speaker="lula",
+            fingerprint=fingerprint,
+            speaker=who,
             origin="manual",
+            debate_id=None,
             status="pendente",
         )
         db.add(row)
@@ -456,9 +465,7 @@ def enqueue_manual(text: str) -> int:
             db.commit()
         except IntegrityError:
             db.rollback()
-            existing = db.scalars(
-                select(Claim).where(Claim.fingerprint == _fingerprint("manual:" + cleaned))
-            ).first()
+            existing = db.scalars(select(Claim).where(Claim.fingerprint == fingerprint)).first()
             return existing.id if existing else 0
         claim_id = row.id
     _ensure_checker()

@@ -1,9 +1,13 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
-from sqlalchemy import DateTime, Float, Integer, String, Text, create_engine, select
+from sqlalchemy import Date, DateTime, Float, Integer, String, Text, create_engine, inspect, select, text, update
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 from app.settings import settings
+
+FIRST_DEBATE_SLUG = "2026-10-18-band"
+SCORE_SPEAKERS = ("lula", "flavio")
+SCORE_BASE = ("sustentado", "contradito", "exagerado")
 
 
 def utcnow() -> datetime:
@@ -14,11 +18,23 @@ class Base(DeclarativeBase):
     pass
 
 
+class Debate(Base):
+    __tablename__ = "debates"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    slug: Mapped[str] = mapped_column(String(80), unique=True)
+    title: Mapped[str] = mapped_column(String(160))
+    held_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    rules: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class Segment(Base):
     __tablename__ = "segments"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     text: Mapped[str] = mapped_column(Text)
+    debate_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
@@ -31,6 +47,7 @@ class Claim(Base):
     fingerprint: Mapped[str] = mapped_column(String(64), unique=True)
     speaker: Mapped[str] = mapped_column(String(32), default="lula")
     origin: Mapped[str] = mapped_column(String(16), default="live")
+    debate_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(String(32), default="pendente")
     confidence: Mapped[float] = mapped_column(Float, default=0)
     summary: Mapped[str] = mapped_column(Text, default="")
@@ -46,6 +63,7 @@ class RunState(Base):
     running: Mapped[int] = mapped_column(Integer, default=0)
     youtube_url: Mapped[str] = mapped_column(Text, default="")
     last_error: Mapped[str] = mapped_column(Text, default="")
+    active_debate_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
@@ -65,11 +83,64 @@ def init_db() -> None:
     )
     Session = sessionmaker(bind=engine, expire_on_commit=False)
     Base.metadata.create_all(engine)
-    with Session() as session:
-        state = session.get(RunState, 1)
+    _add_missing_columns(engine)
+    with Session() as db:
+        state = db.get(RunState, 1)
         if state is None:
-            session.add(RunState(id=1, running=0, youtube_url=settings.youtube_default))
-            session.commit()
+            db.add(RunState(id=1, running=0, youtube_url=settings.youtube_default))
+            db.commit()
+        _seed_first_debate(db)
+
+
+def _add_missing_columns(bound) -> None:
+    insp = inspect(bound)
+    tables = set(insp.get_table_names())
+    wanted = {
+        "segments": ("debate_id", "INTEGER"),
+        "claims": ("debate_id", "INTEGER"),
+        "run_state": ("active_debate_id", "INTEGER"),
+    }
+    alters: list[str] = []
+    for table, (column, kind) in wanted.items():
+        if table not in tables:
+            continue
+        names = {item["name"] for item in insp.get_columns(table)}
+        if column not in names:
+            alters.append(f"ALTER TABLE {table} ADD COLUMN {column} {kind}")
+    if not alters:
+        return
+    with bound.begin() as conn:
+        for statement in alters:
+            conn.execute(text(statement))
+
+
+def _seed_first_debate(db) -> None:
+    debate = db.scalars(select(Debate).where(Debate.slug == FIRST_DEBATE_SLUG)).first()
+    created = debate is None
+    if debate is None:
+        debate = Debate(
+            slug=FIRST_DEBATE_SLUG,
+            title="Primeiro debate Band — 18/10/2026",
+            held_on=date(2026, 10, 18),
+            rules="Lula e Flávio Bolsonaro. Mediação de Adriana Araújo e Eduardo Oinegue.",
+        )
+        db.add(debate)
+        db.flush()
+    if created:
+        db.execute(update(Segment).where(Segment.debate_id.is_(None)).values(debate_id=debate.id))
+        db.execute(update(Claim).where(Claim.debate_id.is_(None)).values(debate_id=debate.id))
+    state = db.get(RunState, 1)
+    if state is not None and state.active_debate_id is None:
+        state.active_debate_id = debate.id
+    db.commit()
+
+
+def mentira_percent(counts: dict) -> float | None:
+    """contradito / (sustentado + contradito + exagerado). Sem essa base, não há percentual."""
+    base = sum(int(counts.get(key) or 0) for key in SCORE_BASE)
+    if base <= 0:
+        return None
+    return round(100 * int(counts.get("contradito") or 0) / base, 1)
 
 
 def session():
@@ -96,6 +167,7 @@ def claim_dict(row: Claim) -> dict:
         "normalized": row.normalized,
         "speaker": row.speaker,
         "origin": row.origin,
+        "debate_id": row.debate_id,
         "status": row.status,
         "confidence": row.confidence,
         "summary": row.summary,

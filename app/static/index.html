@@ -50,8 +50,10 @@
       padding: 28px 0 12px;
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 16px;
     }
+    header a { color: var(--ie-coral); font-weight: 800; text-decoration: none; }
     .brand {
       display: flex;
       align-items: center;
@@ -191,6 +193,7 @@
         <p class="brand-kicker">IEleitoral</p>
         <h1>Sistema de checagem debate</h1>
       </div>
+      <a href="/dashboard">Mentirômetro</a>
     </div>
   </header>
   <main>
@@ -207,7 +210,8 @@
         <input id="url" type="url" required>
         <button type="submit">Ouvir a live</button>
         <button id="stop" class="ghost" type="button">Parar</button>
-        <button id="reset" class="ghost" type="button">Limpar checagens</button>
+        <button id="new-debate" class="ghost" type="button">Novo debate</button>
+        <button id="reset" class="ghost" type="button">Limpar fila</button>
         <span id="status" class="meta"></span>
       </form>
       <p id="error" class="error"></p>
@@ -225,6 +229,11 @@
         <section>
           <h2>Checagens</h2>
           <form id="manual" class="composer">
+            <select id="speaker">
+              <option value="avulsa">Checagem avulsa (fora do placar)</option>
+              <option value="lula">Lula, sem vincular ao debate</option>
+              <option value="flavio">Flávio, sem vincular ao debate</option>
+            </select>
             <textarea id="phrase" placeholder="Cole ou escreva a frase para checar." required></textarea>
             <button type="submit">Checar esta frase</button>
           </form>
@@ -263,10 +272,11 @@
     }
 
     async function sendCheck(text) {
+      const speaker = document.querySelector("#speaker").value || "avulsa";
       await api("/api/checar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text })
+        body: JSON.stringify({ text, speaker })
       });
       await refresh();
     }
@@ -315,7 +325,7 @@
     });
 
     document.querySelector("#reset").addEventListener("click", async () => {
-      if (!window.confirm("Limpar só as checagens? A transcrição completa continua gravada no banco.")) return;
+      if (!window.confirm("Limpar a fila (pendentes e erros)? Vereditos já resolvidos e a transcrição continuam gravados.")) return;
       marked.clear();
       await api("/api/zerar", { method: "POST" });
       await refresh();
@@ -332,6 +342,21 @@
         link.download = "transcricao-debate.txt";
         link.click();
         URL.revokeObjectURL(url);
+      } catch (error) {
+        errorBox.textContent = error.message;
+      }
+    });
+
+    document.querySelector("#new-debate").addEventListener("click", async () => {
+      const title = window.prompt("Nome do próximo debate");
+      if (!title || title.trim().length < 3) return;
+      try {
+        await api("/api/debates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: title.trim() })
+        });
+        await refresh();
       } catch (error) {
         errorBox.textContent = error.message;
       }
@@ -390,7 +415,8 @@
       const fila = q.done || q.pending || q.erro
         ? ` · ${q.done || 0} resolvidas · ${q.pending || 0} na fila`
         : "";
-      document.querySelector("#status").textContent = (state.running ? "ouvindo a BandNews" : "parado") + ie + fila;
+      const debate = state.active_debate ? ` · ${state.active_debate.title}` : "";
+      document.querySelector("#status").textContent = (state.running ? "ouvindo a BandNews" : "parado") + debate + ie + fila;
       errorBox.textContent = state.last_error || "";
       const totalSegs = state.segments_total || 0;
       document.querySelector("#segments-total").textContent = totalSegs
