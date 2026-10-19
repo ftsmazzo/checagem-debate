@@ -326,15 +326,17 @@ def _search_brief(quote: str, claim: str) -> dict:
         return {"findings": "", "sources": [], "raw": ""}
 
 
-def verify_claim(quote: str, claim: str) -> dict:
+def verify_claim(quote: str, claim: str, fast: bool = False) -> dict:
     ie_bundle = {"enabled": False, "itens": []}
-    try:
-        ie_bundle = ie_mcp.gather_context(quote, claim)
-    except Exception:
-        ie_bundle = {"enabled": False, "itens": []}
+    # Com vários usuários / fila cheia, pula IE para não atrasar o veredito.
+    if not fast:
+        try:
+            ie_bundle = ie_mcp.gather_context(quote, claim)
+        except Exception:
+            ie_bundle = {"enabled": False, "itens": []}
 
     # Pesquisa prévia opcional; por padrão a fila usa só o Sonnet 4.6 + web.
-    brief = _search_brief(quote, claim)
+    brief = _search_brief(quote, claim) if not fast else {"findings": "", "sources": [], "raw": ""}
     brief_block = ""
     if brief["findings"] or brief["sources"]:
         brief_block = (

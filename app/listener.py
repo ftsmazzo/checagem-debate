@@ -125,11 +125,14 @@ def _fingerprint(text: str) -> str:
     return hashlib.sha256(key.encode("utf-8")).hexdigest()
 
 
+CHECK_WORKERS = 3
+
+
 class DebateListener:
     def __init__(self) -> None:
         self.audio_stop = threading.Event()
         self.audio_thread: threading.Thread | None = None
-        self.check_thread: threading.Thread | None = None
+        self.check_threads: list[threading.Thread] = []
         self.procs: list[subprocess.Popen] = []
         self.lock = threading.Lock()
         self.context = ""
@@ -154,10 +157,12 @@ class DebateListener:
         self._set_state(False, None, "")
 
     def ensure_checker(self) -> None:
-        if self.check_thread and self.check_thread.is_alive():
-            return
-        self.check_thread = threading.Thread(target=self._check_loop, daemon=True)
-        self.check_thread.start()
+        with self.lock:
+            self.check_threads = [t for t in self.check_threads if t.is_alive()]
+            while len(self.check_threads) < CHECK_WORKERS:
+                thread = threading.Thread(target=self._check_loop, daemon=True)
+                thread.start()
+                self.check_threads.append(thread)
 
     def _set_state(self, running: bool | None, url: str | None, error: str | None) -> None:
         with session() as db:
@@ -361,29 +366,47 @@ class DebateListener:
                 except IntegrityError:
                     db.rollback()
 
+    def _claim_next(self) -> tuple[int, str, str, bool] | None:
+        """Pega a pendente mais nova sem colidir com outro worker."""
+        with session() as db:
+            row = db.scalars(
+                select(Claim)
+                .where(Claim.status == "pendente")
+                .order_by(Claim.id.desc())
+                .limit(1)
+                .with_for_update(skip_locked=True)
+            ).first()
+            if row is None:
+                return None
+            pending_n = db.scalar(
+                select(func.count()).select_from(Claim).where(
+                    Claim.status.in_(("pendente", "processando"))
+                )
+            ) or 0
+            claim_id = row.id
+            quote = row.quote
+            normalized = row.normalized
+            row.status = "processando"
+            db.commit()
+            # Com fila cheia (vários usuários), pula IE para ir mais rápido.
+            fast = pending_n >= 4
+            return claim_id, quote, normalized, fast
+
     def _check_loop(self) -> None:
         while True:
-            with session() as db:
-                # Prioriza o mais novo: é o que aparece no painel.
-                row = db.scalars(
-                    select(Claim)
-                    .where(Claim.status == "pendente")
-                    .order_by(Claim.id.desc())
-                    .limit(1)
-                ).first()
-                if row is None:
-                    claim_id = None
-                else:
-                    claim_id = row.id
-                    quote = row.quote
-                    normalized = row.normalized
-                    row.status = "processando"
-                    db.commit()
-            if claim_id is None:
+            claimed = None
+            try:
+                claimed = self._claim_next()
+            except Exception as exc:
+                self._set_state(None, None, f"fila: {exc}")
+                time.sleep(2)
+                continue
+            if claimed is None:
                 time.sleep(1)
                 continue
+            claim_id, quote, normalized, fast = claimed
             try:
-                verdict = verify_claim(quote, normalized)
+                verdict = verify_claim(quote, normalized, fast=fast)
                 status = verdict["status"]
                 summary = verdict["summary"]
                 missing = verdict["missing"]
@@ -441,12 +464,10 @@ def _ensure_checker() -> None:
 
 
 def collapse_pending_queue() -> dict:
-    """Libera a fila: retoma processando e descarta paráfrases repetidas."""
+    """Libera a fila: descarta paráfrases repetidas e mantém as mais novas."""
     kept = 0
     dropped = 0
     with session() as db:
-        for row in db.scalars(select(Claim).where(Claim.status == "processando")):
-            row.status = "pendente"
         rows = list(
             db.scalars(
                 select(Claim).where(Claim.status == "pendente").order_by(Claim.id.desc())
@@ -461,17 +482,16 @@ def collapse_pending_queue() -> dict:
                 row.summary = "duplicata na fila — mesma afirmação já estava em checagem"
                 row.confidence = 0
                 dropped += 1
-            else:
-                if key:
-                    seen.add(key)
-                kept += 1
-                # Mantém no máximo 10 pendentes (as mais novas).
-                if kept > 10:
-                    row.status = "erro"
-                    row.summary = "fila limpa — prioridade para as frases mais recentes"
-                    row.confidence = 0
-                    dropped += 1
-                    kept -= 1
+                continue
+            if key:
+                seen.add(key)
+            if kept >= 10:
+                row.status = "erro"
+                row.summary = "fila limpa — prioridade para as frases mais recentes"
+                row.confidence = 0
+                dropped += 1
+                continue
+            kept += 1
         state = db.get(RunState, 1)
         if state:
             state.last_error = ""
