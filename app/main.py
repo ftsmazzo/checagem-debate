@@ -78,6 +78,7 @@ class LoginBody(BaseModel):
 
 class StartBody(BaseModel):
     youtube_url: str = Field(default="", max_length=400)
+    gravar: bool = True
 
 
 class ManualBody(BaseModel):
@@ -233,6 +234,8 @@ def estado(request: Request) -> dict:
             "ao_vivo": live_n,
         },
         "segments_total": segments_total,
+        "persist": get_listener().persist,
+        "ephemeral": get_listener().preview(),
         "active_debate": active,
         "archive": None
         if archive is None
@@ -263,7 +266,7 @@ def iniciar(body: StartBody, request: Request) -> dict:
     authorized(request)
     try:
         url = resolve_stream(body.youtube_url or settings.youtube_default)
-        get_listener().start(url)
+        get_listener().start(url, persist=body.gravar)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"ok": True}
@@ -535,6 +538,11 @@ def index() -> FileResponse:
 @app.get("/dashboard")
 def dashboard() -> FileResponse:
     return FileResponse(STATIC / "dashboard.html")
+
+
+@app.get("/checar")
+def checar_pagina() -> FileResponse:
+    return FileResponse(STATIC / "checar.html")
 
 
 app.mount("/static", StaticFiles(directory=STATIC), name="static")

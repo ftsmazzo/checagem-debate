@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Checar frase · Mentirômetro</title>
+  <link rel="icon" type="image/png" href="/static/logo-ie.png">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f141c; --surface: #1a222f; --ink: #f2f4f8; --muted: #9aa6b8;
+      --line: #2c3648; --coral: #e8786a; --soft: #d5dde8;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font-family: Montserrat, system-ui, sans-serif; }
+    header, main { width: min(820px, calc(100% - 28px)); margin: 0 auto; }
+    header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 28px 0 8px; }
+    h1 { margin: 0; font-size: 1.6rem; }
+    .kicker { margin: 0 0 4px; color: var(--coral); font-weight: 700; }
+    .nav { display: flex; gap: 8px; flex-wrap: wrap; }
+    .nav a {
+      display: inline-flex; align-items: center; min-height: 42px; padding: 0 16px;
+      border-radius: 999px; border: 1px solid var(--line); background: var(--surface);
+      color: var(--ink); font-weight: 800; text-decoration: none;
+    }
+    .nav a.here { background: var(--coral); border-color: transparent; color: #fff; }
+    .lead { color: var(--soft); max-width: 62ch; }
+    form, article, .login {
+      background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px;
+    }
+    .login { display: flex; gap: 8px; }
+    form { display: flex; flex-direction: column; gap: 10px; }
+    textarea, select, input, button { font: inherit; border-radius: 10px; border: 1px solid var(--line); background: #222b3a; color: var(--ink); padding: 12px; }
+    textarea { min-height: 160px; width: 100%; resize: vertical; }
+    button { background: var(--coral); color: #1a1010; font-weight: 800; cursor: pointer; }
+    button.ghost { background: transparent; color: var(--ink); }
+    article { margin-top: 12px; }
+    .meta { color: var(--muted); }
+    a { color: var(--coral); }
+    .error { color: #ffb4b4; }
+    .row { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <p class="kicker">IEleitoral</p>
+      <h1>Checar uma frase</h1>
+    </div>
+    <nav class="nav">
+      <a href="/">Ao vivo</a>
+      <a class="here" href="/checar">Checar frase</a>
+      <a href="/dashboard">Placar</a>
+    </nav>
+  </header>
+  <main>
+    <p class="lead">Cole uma fala, de um debate ou de qualquer rádio. A resposta fica aqui para copiar. Não grava transcrição.</p>
+    <form id="login" class="login">
+      <input id="password" type="password" placeholder="Senha do painel" required>
+      <button type="submit">Entrar</button>
+    </form>
+    <div id="app" hidden>
+      <form id="ask">
+        <textarea id="phrase" placeholder="Cole a frase que você quer checar." required></textarea>
+        <button type="submit">Checar esta frase</button>
+      </form>
+      <p id="error" class="error"></p>
+      <div id="answers"></div>
+    </div>
+  </main>
+  <script>
+    const labels = {
+      pendente: "Checando", processando: "Checando", sustentado: "Com fonte a favor",
+      contradito: "Fontes contrariam", exagerado: "Recorte exagerado",
+      sem_evidencia: "Sem fonte suficiente", inconclusivo: "Depende do recorte", erro: "Erro na consulta"
+    };
+    const login = document.querySelector("#login");
+    const app = document.querySelector("#app");
+    const errorBox = document.querySelector("#error");
+    let claimById = new Map();
+
+    async function api(path, options) {
+      const response = await fetch(path, { credentials: "same-origin", ...options });
+      const data = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        app.hidden = true;
+        login.hidden = false;
+        throw new Error("faça login");
+      }
+      if (!response.ok) throw new Error(data.detail || "falha na consulta");
+      return data;
+    }
+
+    function escapeHtml(value) {
+      return String(value || "").replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[char]));
+    }
+
+    function render(state) {
+      const rows = (state.claims || []).filter((claim) => claim.origin === "manual" && !claim.debate_id);
+      claimById = new Map(rows.map((claim) => [claim.id, claim]));
+      document.querySelector("#answers").innerHTML = rows.length
+        ? rows.map((claim) => {
+            const sources = (claim.sources || []).map((source) =>
+              `<li><a href="${escapeHtml(source.url)}" target="_blank" rel="noreferrer">${escapeHtml(source.title)}</a></li>`
+            ).join("");
+            return `<article>
+              <div class="row"><strong>${escapeHtml(labels[claim.status] || claim.status)}</strong>
+                <button type="button" class="ghost" data-copy="${claim.id}">Copiar resposta</button></div>
+              <p><strong>${escapeHtml(claim.normalized || claim.quote)}</strong></p>
+              <p>${escapeHtml(claim.summary || "")}</p>
+              ${sources ? `<ul>${sources}</ul>` : ""}
+            </article>`;
+          }).join("")
+        : `<p class="meta">A resposta aparece aqui.</p>`;
+    }
+
+    async function refresh() {
+      if (app.hidden) return;
+      try { render(await api("/api/estado")); }
+      catch (error) { if (error.message !== "faça login") errorBox.textContent = error.message; }
+    }
+
+    login.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      try {
+        await api("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: document.querySelector("#password").value })
+        });
+        login.hidden = true;
+        app.hidden = false;
+        await refresh();
+      } catch (error) { errorBox.textContent = error.message; }
+    });
+
+    document.querySelector("#ask").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const phrase = document.querySelector("#phrase");
+      try {
+        await api("/api/checar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: phrase.value, speaker: "avulsa" })
+        });
+        phrase.value = "";
+        await refresh();
+      } catch (error) { errorBox.textContent = error.message; }
+    });
+
+    document.querySelector("#answers").addEventListener("click", async (event) => {
+      const button = event.target.closest("[data-copy]");
+      if (!button) return;
+      const claim = claimById.get(Number(button.dataset.copy));
+      if (!claim) return;
+      const sources = (claim.sources || []).map((source) => source.url).filter(Boolean).join("\n");
+      const text = [labels[claim.status] || claim.status, claim.normalized || claim.quote, claim.summary || "", sources]
+        .filter(Boolean).join("\n\n");
+      try {
+        await navigator.clipboard.writeText(text);
+        button.textContent = "Copiado";
+      } catch (error) { errorBox.textContent = "Não foi possível copiar."; }
+    });
+
+    setInterval(refresh, 3000);
+    api("/api/estado").then((state) => {
+      login.hidden = true;
+      app.hidden = false;
+      render(state);
+    }).catch(() => {});
+  </script>
+</body>
+</html>

@@ -137,14 +137,23 @@ class DebateListener:
         self.lock = threading.Lock()
         self.context = ""
         self.chunk_dir = Path("/tmp/debate-chunks")
+        self.persist = True
+        self.ephemeral: list[dict] = []
+        self._ephemeral_seq = 0
 
-    def start(self, url: str) -> None:
+    def start(self, url: str, persist: bool = True) -> None:
         url = resolve_stream(url)
         if not settings.openrouter_key:
             raise RuntimeError("OPENROUTER_API_KEY ausente no serviço")
         with self.lock:
-            if self.audio_thread and self.audio_thread.is_alive():
+            alive = self.audio_thread and self.audio_thread.is_alive()
+            if alive and self.persist != persist:
+                raise RuntimeError("Pare a escuta antes de trocar entre gravar e só ouvir.")
+            if alive:
                 return
+            self.persist = persist
+            if not persist:
+                self.ephemeral = []
             self.audio_stop.clear()
             self._set_state(True, url, "")
             self.audio_thread = threading.Thread(target=self._audio_loop, args=(url,), daemon=True)
@@ -156,6 +165,10 @@ class DebateListener:
         self.audio_stop.set()
         self._kill()
         self._set_state(False, None, "")
+
+    def preview(self) -> list[dict]:
+        with self.lock:
+            return list(self.ephemeral)
 
     def ensure_checker(self) -> None:
         with self.lock:
@@ -329,6 +342,20 @@ class DebateListener:
             path.unlink(missing_ok=True)
         folded = text.casefold().strip()
         if len(folded) < 8 or any(noise in folded for noise in NOISE):
+            return
+        if not self.persist:
+            with self.lock:
+                self._ephemeral_seq += 1
+                self.ephemeral.insert(
+                    0,
+                    {
+                        "id": self._ephemeral_seq,
+                        "text": text,
+                        "created_at": utcnow().isoformat(),
+                    },
+                )
+                del self.ephemeral[40:]
+            self.context = (self.context + "\n" + text)[-8000:]
             return
         with session() as db:
             state = db.get(RunState, 1)

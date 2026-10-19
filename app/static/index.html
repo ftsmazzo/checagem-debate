@@ -53,7 +53,7 @@
       justify-content: space-between;
       gap: 16px;
     }
-    .nav { display: flex; gap: 8px; flex-shrink: 0; }
+    .nav { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
     .nav a {
       display: inline-flex;
       align-items: center;
@@ -125,12 +125,20 @@
       border-radius: var(--ie-radius);
       box-shadow: var(--ie-shadow);
     }
-    .bar, .composer, .login {
+    .bar, .login {
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
       align-items: center;
       padding: 12px;
+    }
+    .composer {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+      padding: 12px;
+      margin-top: 0;
     }
     input, textarea, select, button {
       font: inherit;
@@ -142,9 +150,10 @@
       color: var(--ie-ink);
       padding: 10px 12px;
     }
-    input, select { min-width: 180px; }
-    #url, textarea { flex: 1; }
-    textarea { min-height: 74px; width: 100%; }
+    input, select { min-width: 0; }
+    #fonte, #gravar { width: 220px; flex: 0 0 220px; }
+    #url { flex: 1 1 280px; min-width: 220px; }
+    textarea { min-height: 140px; width: 100%; resize: vertical; }
     button {
       background: var(--ie-coral);
       color: #fff;
@@ -169,7 +178,7 @@
     }
     .grid {
       display: grid;
-      grid-template-columns: 1.15fr 0.85fr;
+      grid-template-columns: minmax(0, 1.15fr) minmax(340px, 0.85fr);
       gap: 16px;
       margin: 16px 0 48px;
     }
@@ -210,7 +219,6 @@
     .error { color: #ffb4b4; white-space: pre-wrap; margin: 10px 0; }
     a { color: var(--ie-accent); }
     #login { margin: 16px 0; }
-    .composer { margin-top: 12px; }
     .claim strong { font-weight: 800; color: var(--ie-ink); }
     .claim ul { margin: 8px 0 0; padding-left: 18px; color: var(--ie-ink-soft); }
     @media (max-width: 860px) {
@@ -231,7 +239,8 @@
     </div>
     <nav class="nav" aria-label="Seções">
       <a class="here" href="/">Ao vivo</a>
-      <a href="/dashboard">Abrir placar</a>
+      <a href="/checar">Checar frase</a>
+      <a href="/dashboard">Placar</a>
     </nav>
   </header>
   <main>
@@ -241,11 +250,15 @@
     </form>
     <div id="app" hidden>
       <aside id="saved" class="saved"></aside>
-      <p class="lead">Esta tela ouve a transmissão e checa uma frase. O placar de Lula e Flávio fica no botão Abrir placar.</p>
+      <p class="lead">Ouça um link e leia o que foi dito. Para checar uma frase e copiar a resposta, use Checar frase. O placar fica separado.</p>
       <form id="controls" class="bar">
         <select id="fonte">
           <option value="bandnews_sp">BandNews FM SP</option>
-          <option value="custom">Outro link</option>
+          <option value="custom">Outro link de rádio</option>
+        </select>
+        <select id="gravar">
+          <option value="1">Gravar no debate ativo</option>
+          <option value="0">Só ouvir agora, sem gravar</option>
         </select>
         <input id="url" type="url" required>
         <button type="submit">Ouvir a live</button>
@@ -301,6 +314,7 @@
     const errorBox = document.querySelector("#error");
     const marked = new Set();
     let latestSegments = [];
+    let claimById = new Map();
 
     async function api(path, options) {
       const response = await fetch(path, { credentials: "same-origin", ...options });
@@ -354,7 +368,7 @@
         await api("/api/iniciar", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ youtube_url: stream })
+          body: JSON.stringify({ youtube_url: stream, gravar: document.querySelector("#gravar").value === "1" })
         });
         await refresh();
       } catch (error) {
@@ -426,6 +440,26 @@
       marked.clear();
     });
 
+    document.querySelector("#claims").addEventListener("click", async (event) => {
+      const button = event.target.closest("[data-copy]");
+      if (!button) return;
+      const claim = claimById.get(Number(button.dataset.copy));
+      if (!claim) return;
+      const sources = (claim.sources || []).map((source) => source.url).filter(Boolean).join("\n");
+      const text = [
+        labels[claim.status] || claim.status,
+        claim.normalized || claim.quote,
+        claim.summary || "",
+        sources
+      ].filter(Boolean).join("\n\n");
+      try {
+        await navigator.clipboard.writeText(text);
+        button.textContent = "Copiado";
+      } catch (error) {
+        errorBox.textContent = "Não foi possível copiar.";
+      }
+    });
+
     document.querySelector("#segments").addEventListener("click", async (event) => {
       const button = event.target.closest("[data-check]");
       const box = event.target.closest("[data-mark]");
@@ -476,10 +510,14 @@
       document.querySelector("#status").textContent = listening + "." + where + fila + ieText;
       errorBox.textContent = state.last_error || "";
       const totalSegs = state.segments_total || 0;
-      document.querySelector("#segments-total").textContent = totalSegs
-        ? `${totalSegs} trechos gravados`
-        : "Nenhum trecho gravado ainda";
-      latestSegments = state.segments || [];
+      document.querySelector("#segments-total").textContent = state.persist === false
+        ? "Esta escuta fica só nesta tela. Parar ou reiniciar apaga esses trechos."
+        : (totalSegs ? `${totalSegs} trechos gravados no banco` : "Nenhum trecho gravado ainda");
+      const gravar = document.querySelector("#gravar");
+      if (document.activeElement !== gravar) gravar.value = state.persist === false ? "0" : "1";
+      const download = document.querySelector("#download-transcript");
+      download.hidden = state.persist === false;
+      latestSegments = state.persist === false ? (state.ephemeral || []) : (state.segments || []);
       const alive = new Set(latestSegments.map((row) => row.id));
       for (const id of [...marked]) if (!alive.has(id)) marked.delete(id);
       document.querySelector("#segments").innerHTML = latestSegments.length
@@ -493,8 +531,9 @@
               <span class="meta">${escapeHtml(formatWhen(row.created_at))}</span>
             </div>
           </article>`).join("")
-        : `<p class="meta">A transcrição aparece aqui, com o trecho mais novo no topo.</p>`;
+        : `<p class="meta">${state.persist === false ? "Os trechos de agora aparecem aqui e não entram no debate salvo." : "A transcrição aparece aqui, com o trecho mais novo no topo."}</p>`;
       updateCount();
+      claimById = new Map((state.claims || []).map((claim) => [claim.id, claim]));
       document.querySelector("#claims").innerHTML = state.claims.length
         ? state.claims.map(renderClaim).join("")
         : `<p class="meta">Nenhuma frase enviada ainda.</p>`;
@@ -514,6 +553,7 @@
       return `<article class="claim">
         <span class="chip ${escapeHtml(claim.status)}">${escapeHtml(label)}</span>
         <p><strong>${escapeHtml(claim.normalized)}</strong></p>
+        <div class="actions"><button type="button" class="ghost" data-copy="${claim.id}">Copiar resposta</button></div>
         <p class="meta">${escapeHtml(claim.quote)}</p>
         <p>${escapeHtml(claim.summary || "")}</p>
         ${claim.missing ? `<p class="meta">${escapeHtml(claim.missing)}</p>` : ""}
