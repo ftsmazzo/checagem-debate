@@ -4,11 +4,11 @@ import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request, Response
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Query, Request, Response
+from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 
 from app.db import Claim, RunState, Segment, claim_dict, init_db, ping, session, utcnow
 from app.listener import (
@@ -122,6 +122,7 @@ def estado(request: Request) -> dict:
     running_flag()
     with session() as db:
         state = db.get(RunState, 1)
+        segments_total = int(db.scalar(select(func.count()).select_from(Segment)) or 0)
         segments = list(db.scalars(select(Segment).order_by(Segment.id.desc()).limit(80)))
         # Resolvidas primeiro (o usuário precisa ver o veredito), depois a fila.
         done = list(
@@ -163,6 +164,7 @@ def estado(request: Request) -> dict:
         "cookies_loaded": cookies_loaded(),
         "ie_mcp": ie_mcp.enabled(),
         "queue": {"done": len(done), "pending": len(queue), "erro": len(errors)},
+        "segments_total": segments_total,
         "presets": {
             "bandnews_sp": PRESETS["bandnews_sp"],
         },
@@ -208,11 +210,11 @@ def checar(body: ManualBody, request: Request) -> dict:
 
 @app.post("/api/zerar")
 def zerar(request: Request) -> dict:
+    """Limpa só a fila de checagens. A transcrição nunca é apagada daqui."""
     authorized(request)
     get_listener().halt()
     with session() as db:
         db.execute(delete(Claim))
-        db.execute(delete(Segment))
         state = db.get(RunState, 1)
         if state:
             state.running = 0
@@ -220,7 +222,56 @@ def zerar(request: Request) -> dict:
             state.youtube_url = settings.youtube_default
             state.updated_at = utcnow()
         db.commit()
-    return {"ok": True}
+    return {"ok": True, "segments_kept": True}
+
+
+@app.get("/api/transcricao")
+def transcricao(
+    request: Request,
+    download: bool = Query(default=False),
+    after_id: int = Query(default=0, ge=0),
+    limit: int = Query(default=5000, ge=1, le=20000),
+):
+    """Recupera a transcrição completa gravada no banco (ordem cronológica)."""
+    authorized(request)
+    with session() as db:
+        total = int(db.scalar(select(func.count()).select_from(Segment)) or 0)
+        query = select(Segment).order_by(Segment.id.asc()).limit(limit)
+        if after_id:
+            query = (
+                select(Segment)
+                .where(Segment.id > after_id)
+                .order_by(Segment.id.asc())
+                .limit(limit)
+            )
+        rows = list(db.scalars(query))
+    payload = {
+        "total": total,
+        "count": len(rows),
+        "next_after_id": rows[-1].id if rows else after_id,
+        "segments": [
+            {
+                "id": row.id,
+                "text": row.text,
+                "created_at": row.created_at.isoformat() if row.created_at else "",
+            }
+            for row in rows
+        ],
+        "text": "\n".join(row.text for row in rows if row.text),
+    }
+    if download:
+        body = "\n\n".join(
+            f"[{row.created_at.isoformat() if row.created_at else ''}] {row.text}"
+            for row in rows
+        )
+        return PlainTextResponse(
+            body or "(transcrição vazia)",
+            media_type="text/plain; charset=utf-8",
+            headers={
+                "Content-Disposition": 'attachment; filename="transcricao-debate.txt"'
+            },
+        )
+    return payload
 
 
 @app.post("/api/reprocessar")

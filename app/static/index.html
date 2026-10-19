@@ -207,7 +207,7 @@
         <input id="url" type="url" required>
         <button type="submit">Ouvir a live</button>
         <button id="stop" class="ghost" type="button">Parar</button>
-        <button id="reset" class="ghost" type="button">Zerar tudo</button>
+        <button id="reset" class="ghost" type="button">Limpar checagens</button>
         <span id="status" class="meta"></span>
       </form>
       <p id="error" class="error"></p>
@@ -216,7 +216,9 @@
           <h2>Transcrição</h2>
           <div class="actions">
             <button id="check-selected" type="button">Checar trechos marcados</button>
+            <button id="download-transcript" class="ghost" type="button">Baixar transcrição completa</button>
             <span id="selected-count" class="meta">Nenhum trecho marcado</span>
+            <span id="segments-total" class="meta"></span>
           </div>
           <div id="segments"></div>
         </section>
@@ -313,10 +315,26 @@
     });
 
     document.querySelector("#reset").addEventListener("click", async () => {
-      if (!window.confirm("Apagar toda a transcrição e as checagens deste debate?")) return;
+      if (!window.confirm("Limpar só as checagens? A transcrição completa continua gravada no banco.")) return;
       marked.clear();
       await api("/api/zerar", { method: "POST" });
       await refresh();
+    });
+
+    document.querySelector("#download-transcript").addEventListener("click", async () => {
+      try {
+        const response = await fetch("/api/transcricao?download=1", { credentials: "include" });
+        if (!response.ok) throw new Error("Não foi possível baixar a transcrição.");
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "transcricao-debate.txt";
+        link.click();
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        errorBox.textContent = error.message;
+      }
     });
 
     document.querySelector("#manual").addEventListener("submit", async (event) => {
@@ -374,6 +392,10 @@
         : "";
       document.querySelector("#status").textContent = (state.running ? "ouvindo a BandNews" : "parado") + ie + fila;
       errorBox.textContent = state.last_error || "";
+      const totalSegs = state.segments_total || 0;
+      document.querySelector("#segments-total").textContent = totalSegs
+        ? `${totalSegs} trechos gravados (recuperáveis)`
+        : "Nenhum trecho gravado ainda";
       latestSegments = state.segments || [];
       const alive = new Set(latestSegments.map((row) => row.id));
       for (const id of [...marked]) if (!alive.has(id)) marked.delete(id);
