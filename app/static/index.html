@@ -53,7 +53,42 @@
       justify-content: space-between;
       gap: 16px;
     }
-    header a { color: var(--ie-coral); font-weight: 800; text-decoration: none; }
+    .nav { display: flex; gap: 8px; flex-shrink: 0; }
+    .nav a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 42px;
+      padding: 0 16px;
+      border-radius: 999px;
+      border: 1px solid var(--ie-line);
+      background: var(--ie-surface);
+      color: var(--ie-ink);
+      font-weight: 800;
+      text-decoration: none;
+    }
+    .nav a.here { background: var(--ie-coral); border-color: transparent; color: #fff; }
+    .saved {
+      margin: 0 0 12px;
+      padding: 14px 16px;
+      border-radius: var(--ie-radius);
+      background: var(--ie-surface);
+      border: 1px solid var(--ie-line);
+      border-left: 4px solid var(--ie-coral);
+    }
+    .saved strong { display: block; margin-bottom: 4px; }
+    .lead { margin: 0 0 12px; color: var(--ie-ink-soft); max-width: 62ch; }
+    .tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 12px 0; }
+    .tools a.placar {
+      display: inline-flex;
+      align-items: center;
+      min-height: 42px;
+      padding: 0 16px;
+      border-radius: 999px;
+      background: var(--ie-coral);
+      color: #fff;
+      font-weight: 800;
+      text-decoration: none;
+    }
     .brand {
       display: flex;
       align-items: center;
@@ -191,10 +226,13 @@
       <img src="/static/logo-ie.png" alt="IEleitoral" width="52" height="52">
       <div class="brand-copy">
         <p class="brand-kicker">IEleitoral</p>
-        <h1>Sistema de checagem debate</h1>
+        <h1>Mentirômetro</h1>
       </div>
-      <a href="/dashboard">Mentirômetro</a>
     </div>
+    <nav class="nav" aria-label="Seções">
+      <a class="here" href="/">Ao vivo</a>
+      <a href="/dashboard">Abrir placar</a>
+    </nav>
   </header>
   <main>
     <form id="login" class="login">
@@ -202,6 +240,8 @@
       <button type="submit">Entrar</button>
     </form>
     <div id="app" hidden>
+      <aside id="saved" class="saved"></aside>
+      <p class="lead">Esta tela ouve a transmissão e checa uma frase. O placar de Lula e Flávio fica no botão Abrir placar.</p>
       <form id="controls" class="bar">
         <select id="fonte">
           <option value="bandnews_sp">BandNews FM SP</option>
@@ -210,10 +250,13 @@
         <input id="url" type="url" required>
         <button type="submit">Ouvir a live</button>
         <button id="stop" class="ghost" type="button">Parar</button>
-        <button id="new-debate" class="ghost" type="button">Novo debate</button>
-        <button id="reset" class="ghost" type="button">Limpar fila</button>
         <span id="status" class="meta"></span>
       </form>
+      <div class="tools">
+        <a class="placar" href="/dashboard">Ver o placar do debate</a>
+        <button id="new-debate" class="ghost" type="button">Criar o próximo debate</button>
+        <button id="reset" class="ghost" type="button">Limpar só a fila</button>
+      </div>
       <p id="error" class="error"></p>
       <div class="grid">
         <section>
@@ -230,11 +273,11 @@
           <h2>Checagens</h2>
           <form id="manual" class="composer">
             <select id="speaker">
-              <option value="avulsa">Checagem avulsa (fora do placar)</option>
-              <option value="lula">Lula, sem vincular ao debate</option>
-              <option value="flavio">Flávio, sem vincular ao debate</option>
+              <option value="avulsa">Só checar, sem entrar no placar</option>
+              <option value="lula">Atribuir a Lula, sem entrar no placar</option>
+              <option value="flavio">Atribuir a Flávio, sem entrar no placar</option>
             </select>
-            <textarea id="phrase" placeholder="Cole ou escreva a frase para checar." required></textarea>
+            <textarea id="phrase" placeholder="Cole a frase. Ela não substitui o debate salvo." required></textarea>
             <button type="submit">Checar esta frase</button>
           </form>
           <div id="claims"></div>
@@ -348,7 +391,7 @@
     });
 
     document.querySelector("#new-debate").addEventListener("click", async () => {
-      const title = window.prompt("Nome do próximo debate");
+      const title = window.prompt("Nome do próximo debate. O debate Band — 18/10 continua salvo.");
       if (!title || title.trim().length < 3) return;
       try {
         await api("/api/debates", {
@@ -410,17 +453,22 @@
       if (state.youtube_url) urlInput.value = state.youtube_url;
       else if (!urlInput.value) urlInput.value = bandnews;
       fonte.value = (urlInput.value || "").includes("BANDNEWSFM") ? "bandnews_sp" : "custom";
-      const ie = state.ie_mcp ? " · IE ligada" : "";
-      const q = state.queue || {};
-      const fila = q.done || q.pending || q.erro
-        ? ` · ${q.done || 0} resolvidas · ${q.pending || 0} na fila`
-        : "";
-      const debate = state.active_debate ? ` · ${state.active_debate.title}` : "";
-      document.querySelector("#status").textContent = (state.running ? "ouvindo a BandNews" : "parado") + debate + ie + fila;
+      const archive = state.archive;
+      const saved = document.querySelector("#saved");
+      if (archive) {
+        saved.hidden = false;
+        saved.innerHTML = `<strong>${escapeHtml(archive.title)} está salvo</strong><span class="meta">${archive.segments} trechos e ${archive.claims} checagens continuam no banco. Criar outro debate não apaga este.</span>`;
+      } else {
+        saved.hidden = true;
+      }
+      const listening = state.running ? "Ouvindo agora" : "Escuta parada";
+      const where = state.active_debate ? ` Novos trechos entram em ${state.active_debate.title}.` : "";
+      const pending = (state.queue || {}).pending || 0;
+      document.querySelector("#status").textContent = listening + "." + where + (pending ? ` ${pending} frases na fila.` : "");
       errorBox.textContent = state.last_error || "";
       const totalSegs = state.segments_total || 0;
       document.querySelector("#segments-total").textContent = totalSegs
-        ? `${totalSegs} trechos gravados (recuperáveis)`
+        ? `${totalSegs} trechos gravados`
         : "Nenhum trecho gravado ainda";
       latestSegments = state.segments || [];
       const alive = new Set(latestSegments.map((row) => row.id));

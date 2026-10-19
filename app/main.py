@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
 
 from app.db import (
+    FIRST_DEBATE_SLUG,
     SCORE_BASE,
     SCORE_SPEAKERS,
     Claim,
@@ -184,6 +185,22 @@ def estado(request: Request) -> dict:
         )
         claims = done + queue + errors
         active = _debate_brief(db, state.active_debate_id if state else None)
+        archive = db.scalars(select(Debate).where(Debate.slug == FIRST_DEBATE_SLUG)).first()
+        archive_segments = 0
+        archive_claims = 0
+        if archive is not None:
+            archive_segments = int(
+                db.scalar(
+                    select(func.count()).select_from(Segment).where(Segment.debate_id == archive.id)
+                )
+                or 0
+            )
+            archive_claims = int(
+                db.scalar(
+                    select(func.count()).select_from(Claim).where(Claim.debate_id == archive.id)
+                )
+                or 0
+            )
     return {
         "running": bool(state.running) if state else False,
         "youtube_url": state.youtube_url if state else settings.youtube_default,
@@ -193,6 +210,15 @@ def estado(request: Request) -> dict:
         "queue": {"done": len(done), "pending": len(queue), "erro": len(errors)},
         "segments_total": segments_total,
         "active_debate": active,
+        "archive": None
+        if archive is None
+        else {
+            "slug": archive.slug,
+            "title": archive.title,
+            "held_on": archive.held_on.isoformat() if archive.held_on else "",
+            "segments": archive_segments,
+            "claims": archive_claims,
+        },
         "presets": {
             "bandnews_sp": PRESETS["bandnews_sp"],
         },

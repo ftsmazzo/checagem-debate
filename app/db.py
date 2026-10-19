@@ -120,12 +120,14 @@ def _seed_first_debate(db) -> None:
     if debate is None:
         debate = Debate(
             slug=FIRST_DEBATE_SLUG,
-            title="Primeiro debate Band — 18/10/2026",
+            title="Band — 18/10",
             held_on=date(2026, 10, 18),
             rules="Lula e Flávio Bolsonaro. Mediação de Adriana Araújo e Eduardo Oinegue.",
         )
         db.add(debate)
         db.flush()
+    elif debate.title.startswith("Primeiro debate"):
+        debate.title = "Band — 18/10"
     if created:
         db.execute(update(Segment).where(Segment.debate_id.is_(None)).values(debate_id=debate.id))
         db.execute(update(Claim).where(Claim.debate_id.is_(None)).values(debate_id=debate.id))

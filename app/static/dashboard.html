@@ -14,10 +14,17 @@
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--bg); color: var(--ink); font-family: Montserrat, system-ui, sans-serif; }
     header, main { width: min(1100px, calc(100% - 28px)); margin: 0 auto; }
-    header { display: flex; justify-content: space-between; align-items: center; padding: 28px 0 12px; }
-    a { color: var(--coral); font-weight: 800; text-decoration: none; }
+    header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 28px 0 12px; }
     h1 { margin: 0; font-size: 1.6rem; }
-    .kicker { margin: 0 0 4px; color: var(--coral); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
+    .kicker { margin: 0 0 4px; color: var(--coral); font-size: 0.85rem; font-weight: 700; }
+    .nav { display: flex; gap: 8px; }
+    .nav a, a.back {
+      display: inline-flex; align-items: center; min-height: 42px; padding: 0 16px;
+      border-radius: 999px; border: 1px solid var(--line); background: var(--surface);
+      color: var(--ink); font-weight: 800; text-decoration: none;
+    }
+    .nav a.here, a.back { background: var(--coral); border-color: transparent; color: #fff; }
+    .lead { max-width: 62ch; color: #d5dde8; }
     .login, .card, .phrase { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
     .login { display: flex; gap: 8px; max-width: 420px; }
     input, select, button { font: inherit; border-radius: 10px; border: 1px solid var(--line); background: #222b3a; color: var(--ink); padding: 10px 12px; }
@@ -28,6 +35,7 @@
     .meta { color: var(--muted); font-size: 0.85rem; }
     .counts { display: flex; gap: 10px; flex-wrap: wrap; font-size: 0.82rem; }
     .phrase { margin-top: 10px; }
+    .phrase a { color: var(--coral); }
     .phrase strong { display: block; margin-bottom: 6px; }
     .chip { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
     .sustentado { color: var(--ok); } .contradito { color: var(--bad); } .exagerado { color: var(--warn); }
@@ -41,7 +49,10 @@
       <p class="kicker">IEleitoral</p>
       <h1>Mentirômetro</h1>
     </div>
-    <a href="/">Painel ao vivo</a>
+    <nav class="nav" aria-label="Seções">
+      <a href="/">Ao vivo</a>
+      <a class="here" href="/dashboard">Placar</a>
+    </nav>
   </header>
   <main>
     <form id="login" class="login">
@@ -49,11 +60,13 @@
       <button type="submit">Entrar</button>
     </form>
     <div id="app" hidden>
+      <p class="lead">Cada debate fica guardado. Band — 18/10 não é apagado quando você abre o próximo.</p>
       <div class="bar">
-        <select id="debate"></select>
-        <button id="create" type="button">Novo debate</button>
-        <span id="formula" class="meta"></span>
+        <select id="debate" aria-label="Debate"></select>
+        <button id="create" type="button">Criar o próximo debate</button>
+        <a class="back" href="/">Voltar ao vivo</a>
       </div>
+      <p id="formula" class="meta"></p>
       <p id="error" class="error"></p>
       <div id="cards" class="grid"></div>
     </div>
@@ -84,10 +97,10 @@
     }
 
     function card(item) {
-      const pct = item.mentira_percent == null ? "sem base" : item.mentira_percent.toLocaleString("pt-BR") + "%";
+      const pct = item.mentira_percent == null ? "Ainda sem número" : item.mentira_percent.toLocaleString("pt-BR") + "%";
       const note = item.base
-        ? `${item.counts.contradito} contraditas em ${item.base} com fonte`
-        : "Ainda não há veredito com fonte para este candidato.";
+        ? `${item.counts.contradito} falas contrariadas em ${item.base} com fonte. Exagero e falta de fonte ficam na contagem abaixo.`
+        : "Este candidato ainda não tem fala checada neste debate. O número só aparece quando houver fonte.";
       const counts = Object.entries(item.counts).map(([key, value]) => `<span>${labels[key]} ${value}</span>`).join("");
       const phrases = (item.claims || []).map((row) => {
         const source = (row.sources || [])[0];
@@ -99,7 +112,9 @@
 
     async function load(slug) {
       const data = await api("/api/debates/" + encodeURIComponent(slug) + "/placar");
-      document.querySelector("#formula").textContent = data.formula || "";
+      document.querySelector("#formula").textContent = data.debate
+        ? `${data.debate.title} · a porcentagem usa só falas com fonte: contrariadas divididas por sustentadas, contrariadas e exageradas.`
+        : "";
       document.querySelector("#cards").innerHTML = (data.candidates || []).map(card).join("");
     }
 
@@ -136,7 +151,7 @@
     });
 
     document.querySelector("#create").addEventListener("click", async () => {
-      const title = window.prompt("Nome do próximo debate");
+      const title = window.prompt("Nome do próximo debate. Band — 18/10 continua na lista.");
       if (!title || title.trim().length < 3) return;
       try {
         const created = await api("/api/debates", {
