@@ -368,7 +368,11 @@
       else if (!urlInput.value) urlInput.value = bandnews;
       fonte.value = (urlInput.value || "").includes("BANDNEWSFM") ? "bandnews_sp" : "custom";
       const ie = state.ie_mcp ? " · IE ligada" : "";
-      document.querySelector("#status").textContent = (state.running ? "ouvindo a BandNews" : "parado") + ie;
+      const q = state.queue || {};
+      const fila = q.done || q.pending || q.erro
+        ? ` · ${q.done || 0} resolvidas · ${q.pending || 0} na fila`
+        : "";
+      document.querySelector("#status").textContent = (state.running ? "ouvindo a BandNews" : "parado") + ie + fila;
       errorBox.textContent = state.last_error || "";
       latestSegments = state.segments || [];
       const alive = new Set(latestSegments.map((row) => row.id));

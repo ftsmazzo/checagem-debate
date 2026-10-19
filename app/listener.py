@@ -10,7 +10,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from app.db import Claim, RunState, Segment, session, utcnow
@@ -331,6 +331,15 @@ class DebateListener:
         self._enqueue_from_context()
 
     def _enqueue_from_context(self) -> None:
+        with session() as db:
+            pending_n = db.scalar(
+                select(func.count()).select_from(Claim).where(
+                    Claim.status.in_(("pendente", "processando"))
+                )
+            ) or 0
+            if pending_n >= 12:
+                # Não entope a fila enquanto as checagens atuais não terminam.
+                return
         try:
             claims = extract_claims(self.context)
         except Exception as exc:
@@ -355,19 +364,12 @@ class DebateListener:
     def _check_loop(self) -> None:
         while True:
             with session() as db:
-                # Retoma itens travados em processando há mais de 3 minutos.
-                stuck = list(
-                    db.scalars(
-                        select(Claim).where(Claim.status == "processando").order_by(Claim.id)
-                    )
-                )
-                # Qualquer processando antigo volta para a fila (evita item eterno).
-                for row in stuck:
-                    row.status = "pendente"
-                if stuck:
-                    db.commit()
+                # Prioriza o mais novo: é o que aparece no painel.
                 row = db.scalars(
-                    select(Claim).where(Claim.status == "pendente").order_by(Claim.id).limit(1)
+                    select(Claim)
+                    .where(Claim.status == "pendente")
+                    .order_by(Claim.id.desc())
+                    .limit(1)
                 ).first()
                 if row is None:
                     claim_id = None
@@ -443,17 +445,17 @@ def collapse_pending_queue() -> dict:
     kept = 0
     dropped = 0
     with session() as db:
+        for row in db.scalars(select(Claim).where(Claim.status == "processando")):
+            row.status = "pendente"
         rows = list(
             db.scalars(
-                select(Claim)
-                .where(Claim.status.in_(("pendente", "processando")))
-                .order_by(Claim.id)
+                select(Claim).where(Claim.status == "pendente").order_by(Claim.id.desc())
             )
         )
         seen: set[str] = set()
         for row in rows:
             words = re.findall(r"[a-z0-9à-ü]{4,}", (row.normalized or "").casefold())
-            key = " ".join(sorted(set(words))[:12])
+            key = " ".join(sorted(set(words))[:10])
             if key and key in seen:
                 row.status = "erro"
                 row.summary = "duplicata na fila — mesma afirmação já estava em checagem"
@@ -462,9 +464,14 @@ def collapse_pending_queue() -> dict:
             else:
                 if key:
                     seen.add(key)
-                if row.status == "processando":
-                    row.status = "pendente"
                 kept += 1
+                # Mantém no máximo 10 pendentes (as mais novas).
+                if kept > 10:
+                    row.status = "erro"
+                    row.summary = "fila limpa — prioridade para as frases mais recentes"
+                    row.confidence = 0
+                    dropped += 1
+                    kept -= 1
         state = db.get(RunState, 1)
         if state:
             state.last_error = ""

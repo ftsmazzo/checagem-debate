@@ -118,13 +118,46 @@ def estado(request: Request) -> dict:
     with session() as db:
         state = db.get(RunState, 1)
         segments = list(db.scalars(select(Segment).order_by(Segment.id.desc()).limit(80)))
-        claims = list(db.scalars(select(Claim).order_by(Claim.id.desc()).limit(40)))
+        # Resolvidas primeiro (o usuário precisa ver o veredito), depois a fila.
+        done = list(
+            db.scalars(
+                select(Claim)
+                .where(
+                    Claim.status.in_(
+                        (
+                            "sustentado",
+                            "contradito",
+                            "exagerado",
+                            "sem_evidencia",
+                            "inconclusivo",
+                        )
+                    )
+                )
+                .order_by(Claim.id.desc())
+                .limit(30)
+            )
+        )
+        queue = list(
+            db.scalars(
+                select(Claim)
+                .where(Claim.status.in_(("pendente", "processando")))
+                .order_by(Claim.id.desc())
+                .limit(12)
+            )
+        )
+        errors = list(
+            db.scalars(
+                select(Claim).where(Claim.status == "erro").order_by(Claim.id.desc()).limit(5)
+            )
+        )
+        claims = done + queue + errors
     return {
         "running": bool(state.running) if state else False,
         "youtube_url": state.youtube_url if state else settings.youtube_default,
         "last_error": state.last_error if state else "",
         "cookies_loaded": cookies_loaded(),
         "ie_mcp": ie_mcp.enabled(),
+        "queue": {"done": len(done), "pending": len(queue), "erro": len(errors)},
         "presets": {
             "bandnews_sp": PRESETS["bandnews_sp"],
         },
@@ -193,13 +226,16 @@ def reprocessar(request: Request) -> dict:
 
 @app.post("/api/checar-agora")
 def checar_agora(request: Request) -> dict:
-    """Processa uma pendente na hora, para destravar e diagnosticar."""
+    """Processa a pendente mais nova na hora."""
     authorized(request)
     from app.factcheck import verify_claim
 
     with session() as db:
         row = db.scalars(
-            select(Claim).where(Claim.status.in_(("pendente", "processando"))).order_by(Claim.id).limit(1)
+            select(Claim)
+            .where(Claim.status == "pendente")
+            .order_by(Claim.id.desc())
+            .limit(1)
         ).first()
         if row is None:
             return {"ok": True, "done": False, "message": "fila vazia"}
