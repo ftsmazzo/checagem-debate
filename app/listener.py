@@ -147,9 +147,10 @@ class DebateListener:
                 return
             self.audio_stop.clear()
             self._set_state(True, url, "")
-            self.ensure_checker()
             self.audio_thread = threading.Thread(target=self._audio_loop, args=(url,), daemon=True)
             self.audio_thread.start()
+        # Fora do lock: ensure_checker também usa self.lock (Lock não é reentrante).
+        self.ensure_checker()
 
     def halt(self) -> None:
         self.audio_stop.set()

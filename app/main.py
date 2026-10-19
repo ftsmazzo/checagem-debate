@@ -108,7 +108,11 @@ def login(body: LoginBody, response: Response) -> dict:
         secure=True,
         max_age=60 * 60 * 18,
     )
-    get_listener().ensure_checker()
+    # Não bloqueia o login se o checker estiver ocupado; workers sobem no iniciar/checar.
+    try:
+        get_listener().ensure_checker()
+    except Exception:
+        pass
     return {"ok": True}
 
 
