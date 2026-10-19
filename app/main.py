@@ -108,6 +108,7 @@ def login(body: LoginBody, response: Response) -> dict:
         secure=True,
         max_age=60 * 60 * 18,
     )
+    get_listener().ensure_checker()
     return {"ok": True}
 
 
@@ -115,8 +116,6 @@ def login(body: LoginBody, response: Response) -> dict:
 def estado(request: Request) -> dict:
     authorized(request)
     running_flag()
-    # Qualquer pessoa no painel mantém os workers de checagem vivos.
-    get_listener().ensure_checker()
     with session() as db:
         state = db.get(RunState, 1)
         segments = list(db.scalars(select(Segment).order_by(Segment.id.desc()).limit(80)))

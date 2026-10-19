@@ -10,7 +10,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import httpx
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 
 from app.db import Claim, RunState, Segment, session, utcnow
@@ -374,7 +374,6 @@ class DebateListener:
                 .where(Claim.status == "pendente")
                 .order_by(Claim.id.desc())
                 .limit(1)
-                .with_for_update(skip_locked=True)
             ).first()
             if row is None:
                 return None
@@ -386,9 +385,15 @@ class DebateListener:
             claim_id = row.id
             quote = row.quote
             normalized = row.normalized
-            row.status = "processando"
+            # Update otimista: se outro worker já pegou, rowcount=0.
+            result = db.execute(
+                update(Claim)
+                .where(Claim.id == claim_id, Claim.status == "pendente")
+                .values(status="processando")
+            )
             db.commit()
-            # Com fila cheia (vários usuários), pula IE para ir mais rápido.
+            if result.rowcount != 1:
+                return None
             fast = pending_n >= 4
             return claim_id, quote, normalized, fast
 

@@ -57,7 +57,12 @@ def init_db() -> None:
     global engine, Session
     if not settings.database_url:
         raise RuntimeError("DATABASE_URL ausente")
-    engine = create_engine(settings.database_url, pool_pre_ping=True, pool_size=5)
+    engine = create_engine(
+        settings.database_url,
+        pool_pre_ping=True,
+        pool_size=10,
+        max_overflow=20,
+    )
     Session = sessionmaker(bind=engine, expire_on_commit=False)
     Base.metadata.create_all(engine)
     with Session() as session:
