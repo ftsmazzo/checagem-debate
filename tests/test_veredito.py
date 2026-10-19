@@ -1,7 +1,13 @@
 import unittest
 
 from app.db import mentira_percent
-from app.factcheck import attach_citations, citation_sources, parse_json, sanitize_verdict
+from app.factcheck import (
+    attach_citations,
+    citation_sources,
+    is_agency_url,
+    parse_json,
+    sanitize_verdict,
+)
 from app.ie_mcp import format_context
 from app.listener import explain_audio_error, resolve_stream, youtube_cookie_text
 
@@ -63,6 +69,12 @@ class VerdictTests(unittest.TestCase):
 
     def test_json_com_cerca(self):
         self.assertEqual(parse_json('```json\n{"claims":[]}\n```')["claims"], [])
+
+    def test_url_de_agencia(self):
+        self.assertTrue(is_agency_url("https://www.aosfatos.org/noticias/debate-band/"))
+        self.assertTrue(is_agency_url("https://g1.globo.com/fato-ou-fake/noticia/x"))
+        self.assertFalse(is_agency_url("https://www.estadao.com.br/politica/"))
+        self.assertTrue(is_agency_url("https://www.estadao.com.br/estadao-verifica/checagem/"))
 
     def test_contexto_ie_vazio(self):
         text = format_context({"enabled": True, "itens": []})

@@ -1,9 +1,12 @@
-"""Cliente do MCP Inteligência Eleitoral (somente leitura, rápido)."""
+"""Cliente do MCP Inteligência Eleitoral (somente leitura, com teto de tempo)."""
 
 from __future__ import annotations
 
 import json
 import re
+import threading
+import time
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -11,6 +14,13 @@ import httpx
 from app.settings import settings
 
 _ID = 0
+_LOCK = threading.Lock()
+_SESSION_READY = False
+_OK = False
+_DETAIL = "ainda não testada"
+_CHECKED_AT = ""
+BUDGET_SECONDS = 8.0
+TOOL_TIMEOUT = 4.0
 
 
 def _next_id() -> int:
@@ -31,11 +41,30 @@ def _headers() -> dict[str, str]:
     }
 
 
-def _rpc(method: str, params: dict | None = None, timeout: float = 20) -> dict:
+def snapshot() -> dict:
+    with _LOCK:
+        return {
+            "enabled": enabled(),
+            "ok": _OK,
+            "detail": _DETAIL,
+            "checked_at": _CHECKED_AT,
+        }
+
+
+def _mark(ok: bool, detail: str) -> None:
+    global _OK, _DETAIL, _CHECKED_AT
+    with _LOCK:
+        _OK = ok
+        _DETAIL = detail[:180]
+        _CHECKED_AT = datetime.now(timezone.utc).isoformat()
+
+
+def _rpc(method: str, params: dict | None = None, timeout: float = 4) -> dict:
     body: dict[str, Any] = {"jsonrpc": "2.0", "id": _next_id(), "method": method}
     if params is not None:
         body["params"] = params
-    with httpx.Client(timeout=timeout) as client:
+    limits = httpx.Timeout(timeout, connect=2.0)
+    with httpx.Client(timeout=limits) as client:
         response = client.post(settings.ie_mcp_url, headers=_headers(), json=body)
         response.raise_for_status()
         payload = response.json()
@@ -45,6 +74,11 @@ def _rpc(method: str, params: dict | None = None, timeout: float = 20) -> dict:
 
 
 def _ensure_session() -> None:
+    global _SESSION_READY
+    with _LOCK:
+        ready = _SESSION_READY
+    if ready:
+        return
     _rpc(
         "initialize",
         {
@@ -52,10 +86,11 @@ def _ensure_session() -> None:
             "capabilities": {},
             "clientInfo": {"name": "checagem-debate", "version": "1.0"},
         },
-        timeout=12,
+        timeout=3,
     )
     try:
-        with httpx.Client(timeout=8) as client:
+        limits = httpx.Timeout(2.0, connect=2.0)
+        with httpx.Client(timeout=limits) as client:
             client.post(
                 settings.ie_mcp_url,
                 headers=_headers(),
@@ -63,9 +98,27 @@ def _ensure_session() -> None:
             )
     except Exception:
         pass
+    with _LOCK:
+        _SESSION_READY = True
 
 
-def call_tool(name: str, arguments: dict, timeout: float = 10) -> Any:
+def probe() -> dict:
+    """Testa a IE uma vez, sem segurar a fila se o servidor não responder."""
+    if not enabled():
+        _mark(False, "não configurada")
+        return snapshot()
+    try:
+        _ensure_session()
+        _mark(True, "ligada")
+    except Exception as exc:
+        global _SESSION_READY
+        with _LOCK:
+            _SESSION_READY = False
+        _mark(False, f"sem resposta: {exc}"[:180])
+    return snapshot()
+
+
+def call_tool(name: str, arguments: dict, timeout: float = TOOL_TIMEOUT) -> Any:
     result = _rpc(
         "tools/call",
         {"name": name, "arguments": arguments},
@@ -84,9 +137,9 @@ def call_tool(name: str, arguments: dict, timeout: float = 10) -> Any:
         return {"status": "ok", "texto": raw[:4000]}
 
 
-def _safe(name: str, arguments: dict) -> dict:
+def _safe(name: str, arguments: dict, timeout: float = TOOL_TIMEOUT) -> dict:
     try:
-        data = call_tool(name, arguments)
+        data = call_tool(name, arguments, timeout=timeout)
         if not isinstance(data, dict):
             return {"tool": name, "status": "ok", "dados": data}
         out = dict(data)
@@ -120,19 +173,29 @@ def gather_context(quote: str, claim: str) -> dict:
         ),
     ]
 
+    deadline = time.monotonic() + BUDGET_SECONDS
     try:
         _ensure_session()
+        _mark(True, "ligada")
     except Exception as exc:
+        global _SESSION_READY
+        with _LOCK:
+            _SESSION_READY = False
+        _mark(False, f"sem resposta: {exc}"[:180])
         return {
             "enabled": True,
+            "ok": False,
             "itens": [],
             "aviso": f"IE indisponível agora: {exc}"[:200],
         }
 
-    # Série curta: evita ThreadPoolExecutor.wait travando a fila.
+    # Uma ferramenta por vez, e para quando o teto de 8s acaba.
     results: list[dict] = []
     for name, args in jobs:
-        results.append(_safe(name, args))
+        left = deadline - time.monotonic()
+        if left < 1.5:
+            break
+        results.append(_safe(name, args, timeout=min(TOOL_TIMEOUT, left)))
 
     useful = []
     for item in results:
@@ -145,6 +208,7 @@ def gather_context(quote: str, claim: str) -> dict:
 
     return {
         "enabled": True,
+        "ok": True,
         "fonte": "Inteligência Eleitoral MCP",
         "aviso": (
             "Cifra TSE/IBGE/gov do acervo IE conta como evidência. "

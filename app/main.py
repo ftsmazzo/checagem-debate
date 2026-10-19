@@ -1,4 +1,5 @@
 import hashlib
+import threading
 import hmac
 import re
 import secrets
@@ -48,6 +49,7 @@ STATIC = Path(__file__).parent / "static"
 async def lifespan(_app: FastAPI):
     init_db()
     collapse_pending_queue()
+    threading.Thread(target=ie_mcp.probe, name="ie-probe", daemon=True).start()
     yield
 
 
@@ -184,6 +186,22 @@ def estado(request: Request) -> dict:
             )
         )
         claims = done + queue + errors
+        manual_n = int(
+            db.scalar(
+                select(func.count())
+                .select_from(Claim)
+                .where(Claim.status.in_(("pendente", "processando")), Claim.origin == "manual")
+            )
+            or 0
+        )
+        live_n = int(
+            db.scalar(
+                select(func.count())
+                .select_from(Claim)
+                .where(Claim.status.in_(("pendente", "processando")), Claim.origin != "manual")
+            )
+            or 0
+        )
         active = _debate_brief(db, state.active_debate_id if state else None)
         archive = db.scalars(select(Debate).where(Debate.slug == FIRST_DEBATE_SLUG)).first()
         archive_segments = 0
@@ -206,8 +224,14 @@ def estado(request: Request) -> dict:
         "youtube_url": state.youtube_url if state else settings.youtube_default,
         "last_error": state.last_error if state else "",
         "cookies_loaded": cookies_loaded(),
-        "ie_mcp": ie_mcp.enabled(),
-        "queue": {"done": len(done), "pending": len(queue), "erro": len(errors)},
+        "ie_mcp": ie_mcp.snapshot(),
+        "queue": {
+            "done": len(done),
+            "pending": len(queue),
+            "erro": len(errors),
+            "manuais": manual_n,
+            "ao_vivo": live_n,
+        },
         "segments_total": segments_total,
         "active_debate": active,
         "archive": None
@@ -345,10 +369,17 @@ def checar_agora(request: Request) -> dict:
     with session() as db:
         row = db.scalars(
             select(Claim)
-            .where(Claim.status == "pendente")
-            .order_by(Claim.id.desc())
+            .where(Claim.status == "pendente", Claim.origin == "manual")
+            .order_by(Claim.id.asc())
             .limit(1)
         ).first()
+        if row is None:
+            row = db.scalars(
+                select(Claim)
+                .where(Claim.status == "pendente")
+                .order_by(Claim.id.desc())
+                .limit(1)
+            ).first()
         if row is None:
             return {"ok": True, "done": False, "message": "fila vazia"}
         claim_id = row.id
@@ -357,7 +388,7 @@ def checar_agora(request: Request) -> dict:
         row.status = "processando"
         db.commit()
     try:
-        verdict = verify_claim(quote, normalized)
+        verdict = verify_claim(quote, normalized, fast=True)
         status = verdict["status"]
         summary = verdict["summary"]
         missing = verdict["missing"]

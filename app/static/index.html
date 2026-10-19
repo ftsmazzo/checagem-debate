@@ -463,8 +463,17 @@
       }
       const listening = state.running ? "Ouvindo agora" : "Escuta parada";
       const where = state.active_debate ? ` Novos trechos entram em ${state.active_debate.title}.` : "";
-      const pending = (state.queue || {}).pending || 0;
-      document.querySelector("#status").textContent = listening + "." + where + (pending ? ` ${pending} frases na fila.` : "");
+      const q = state.queue || {};
+      const fila = (q.manuais || q.ao_vivo)
+        ? ` Fila: ${q.manuais || 0} pedidas agora, ${q.ao_vivo || 0} da live.`
+        : "";
+      const ie = state.ie_mcp || {};
+      const ieText = !ie.enabled
+        ? " Inteligência Eleitoral desligada."
+        : ie.ok
+          ? " Inteligência Eleitoral ligada."
+          : " Inteligência Eleitoral sem resposta agora.";
+      document.querySelector("#status").textContent = listening + "." + where + fila + ieText;
       errorBox.textContent = state.last_error || "";
       const totalSegs = state.segments_total || 0;
       document.querySelector("#segments-total").textContent = totalSegs

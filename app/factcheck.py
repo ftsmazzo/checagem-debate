@@ -266,6 +266,31 @@ def uses_native_search(model: str) -> bool:
     return mid.startswith("perplexity/") or mid.endswith(":online")
 
 
+AGENCY_MARKERS = (
+    "aosfatos.org",
+    "g1.globo.com/fato-ou-fake",
+    "senado.leg.br/verifica",
+    "justicaeleitoral.jus.br/fato-ou-boato",
+    "lupa.uol.com.br",
+    "estadao.com.br",
+)
+
+AGENCY_SYSTEM = """Você procura uma checagem já publicada sobre a afirmação, só nestes sites:
+aosfatos.org, g1.globo.com/fato-ou-fake, www12.senado.leg.br/verifica,
+justicaeleitoral.jus.br/fato-ou-boato, lupa.uol.com.br e Estadão Verifica.
+Responda só JSON:
+{"sources":[{"title":"nome da página","url":"https://...","note":"o que a página conclui"}]}
+Se nenhum desses sites tiver página sobre o tema, devolva {"sources":[]}.
+Não invente url. Não use outros domínios."""
+
+
+def is_agency_url(url: str) -> bool:
+    folded = (url or "").casefold()
+    if "estadao.com.br" in folded and "verifica" not in folded:
+        return False
+    return any(marker in folded for marker in AGENCY_MARKERS)
+
+
 def web_plugins() -> list[dict] | None:
     if uses_native_search(settings.fact_model):
         return None
@@ -276,10 +301,42 @@ def web_plugins() -> list[dict] | None:
             "max_results": 5,
             "search_prompt": (
                 "Resultados de busca em {date}. Priorize fontes oficiais brasileiras "
-                "(gov.br, IBGE, INEP, TSE, Portal da Transparência) e cite com links https."
+                "(gov.br, IBGE, INEP, TSE, Portal da Transparência). "
+                "Se achar checagem em Aos Fatos, G1 Fato ou Fake, Senado Verifica, "
+                "Justiça Eleitoral Fato ou Boato, Lupa ou Estadão Verifica, cite o link https."
             ),
         }
     ]
+
+
+def agency_search(quote: str, claim: str) -> list[dict]:
+    """Segunda busca, só em agências, quando a primeira checagem ficou sem fonte."""
+    try:
+        payload = chat_completion(
+            settings.fact_model,
+            AGENCY_SYSTEM,
+            f"Frase ouvida:\n{quote}\n\nAfirmação:\n{claim}",
+            timeout=25,
+            plugins=web_plugins(),
+        )
+        data = attach_citations(parse_json(message_text(payload)), citation_sources(payload))
+    except Exception:
+        return []
+    found = []
+    for item in data.get("sources") or []:
+        if not isinstance(item, dict):
+            continue
+        url = str(item.get("url") or "").strip()
+        if not url.startswith("https://") or not is_agency_url(url):
+            continue
+        found.append(
+            {
+                "title": str(item.get("title") or url)[:180],
+                "url": url[:500],
+                "note": ("Agência: " + str(item.get("note") or ""))[:300],
+            }
+        )
+    return found[:4]
 
 
 def extract_claims(transcript: str) -> list[dict]:
@@ -370,4 +427,35 @@ def verify_claim(quote: str, claim: str, fast: bool = False) -> dict:
                     }
                 )
     data = attach_citations(data, ie_sources)
-    return sanitize_verdict(data)
+    verdict = sanitize_verdict(data)
+    if fast or verdict["status"] not in {"sem_evidencia", "inconclusivo"}:
+        return verdict
+    extra = agency_search(quote, claim)
+    if not extra:
+        return verdict
+    merged = attach_citations(
+        {
+            "status": verdict["status"],
+            "confidence": verdict["confidence"],
+            "summary": verdict["summary"],
+            "missing": verdict["missing"],
+            "sources": verdict["sources"],
+        },
+        extra,
+    )
+    try:
+        review = chat_json(
+            settings.fact_model,
+            VERIFY_SYSTEM,
+            (
+                "Reavalie com estas checagens já publicadas. "
+                "Não invente url além das listadas.\n"
+                f"Afirmação:\n{claim}\n\n"
+                f"Veredito anterior:\n{json.dumps(merged, ensure_ascii=False)[:4000]}"
+            ),
+            timeout=25,
+        )
+        review = attach_citations(review, extra)
+        return sanitize_verdict(review)
+    except Exception:
+        return sanitize_verdict(merged)

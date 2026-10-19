@@ -374,12 +374,21 @@ class DebateListener:
     def _claim_next(self) -> tuple[int, str, str, bool] | None:
         """Pega a pendente mais nova sem colidir com outro worker."""
         with session() as db:
-            row = db.scalars(
+            manual = db.scalars(
                 select(Claim)
-                .where(Claim.status == "pendente")
-                .order_by(Claim.id.desc())
+                .where(Claim.status == "pendente", Claim.origin == "manual")
+                .order_by(Claim.id.asc())
                 .limit(1)
             ).first()
+            live = None
+            if manual is None:
+                live = db.scalars(
+                    select(Claim)
+                    .where(Claim.status == "pendente", Claim.origin != "manual")
+                    .order_by(Claim.id.desc())
+                    .limit(1)
+                ).first()
+            row = manual or live
             if row is None:
                 return None
             pending_n = db.scalar(
@@ -486,8 +495,12 @@ def collapse_pending_queue() -> dict:
                 select(Claim).where(Claim.status == "pendente").order_by(Claim.id.desc())
             )
         )
+        manuals = [row for row in rows if row.origin == "manual"]
+        live_rows = [row for row in rows if row.origin != "manual"]
         seen: set[str] = set()
-        for row in rows:
+        for row in manuals:
+            kept += 1
+        for row in live_rows:
             words = re.findall(r"[a-z0-9à-ü]{4,}", (row.normalized or "").casefold())
             key = " ".join(sorted(set(words))[:10])
             if key and key in seen:
@@ -498,7 +511,7 @@ def collapse_pending_queue() -> dict:
                 continue
             if key:
                 seen.add(key)
-            if kept >= 10:
+            if kept >= len(manuals) + 8:
                 row.status = "erro"
                 row.summary = "fila limpa — prioridade para as frases mais recentes"
                 row.confidence = 0
