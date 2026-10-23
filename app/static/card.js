@@ -38,13 +38,22 @@ const MentiroCard = (() => {
     return lines;
   }
 
+  function montserrat() {
+    return document.documentElement.dataset.face === "montserrat";
+  }
+
+  function face(weight, size, display) {
+    if (montserrat()) return `${weight} ${size}px Montserrat, sans-serif`;
+    return `400 ${size}px ${display ? "'Archivo Black', sans-serif" : "Literata, serif"}`;
+  }
+
   function drawStamp(ctx, text, ink, x, y, maxW) {
     ctx.save();
     let size = 42;
-    ctx.font = `400 ${size}px 'Archivo Black', sans-serif`;
+    ctx.font = face(800, size, true);
     while (size > 26 && ctx.measureText(text).width > maxW - 56) {
       size -= 2;
-      ctx.font = `400 ${size}px 'Archivo Black', sans-serif`;
+      ctx.font = face(800, size, true);
     }
     const w = Math.min(ctx.measureText(text).width + 48, maxW);
     const h = size + 34;
@@ -65,15 +74,23 @@ const MentiroCard = (() => {
   }
 
   async function faces() {
+    if (montserrat()) {
+      await Promise.all([
+        document.fonts.load("500 32px Montserrat"),
+        document.fonts.load("700 28px Montserrat"),
+        document.fonts.load("800 64px Montserrat"),
+      ]);
+      return;
+    }
     if (document.fonts.check("16px 'Archivo Black'")) return;
     const black = new FontFace("Archivo Black", "url(/static/fonts/archivo-black.ttf)");
     const body = new FontFace("Literata", "url(/static/fonts/literata-500.ttf)", { weight: "500" });
     const bold = new FontFace("Literata", "url(/static/fonts/literata-700.ttf)", { weight: "700" });
     const loaded = await Promise.all([black.load(), body.load(), bold.load()]);
-    loaded.forEach((face) => document.fonts.add(face));
+    loaded.forEach((item) => document.fonts.add(item));
   }
 
-  async function png(claim, format) {
+  async function draw(claim, format) {
     await faces();
     const story = format === "stories";
     const W = 1080;
@@ -100,17 +117,17 @@ const MentiroCard = (() => {
     top += logoH + 28;
 
     ctx.fillStyle = "#f15d5a";
-    ctx.font = "400 28px 'Archivo Black', sans-serif";
+    ctx.font = face(800, 28, true);
     ctx.textBaseline = "top";
     ctx.fillText("MENTIRÔMETRO", pad, top);
 
     const who = WHO[claim.speaker] || "Checagem";
     ctx.fillStyle = "#f6f3ee";
-    ctx.font = "500 32px Literata, serif";
+    ctx.font = face(500, 32, false);
     ctx.fillText(who, pad, top + 48);
 
     const quote = `"${claim.normalized || claim.quote || ""}"`;
-    ctx.font = "400 64px 'Archivo Black', sans-serif";
+    ctx.font = face(800, 64, true);
     const quoteLines = wrap(ctx, quote, W - pad * 2).slice(0, story ? 8 : 5);
     let y = top + (story ? 140 : 120);
     quoteLines.forEach((line) => {
@@ -125,7 +142,7 @@ const MentiroCard = (() => {
 
     y += stampH + (story ? 48 : 36);
     ctx.fillStyle = "#f6f3ee";
-    ctx.font = "500 36px Literata, serif";
+    ctx.font = face(500, 36, false);
     wrap(ctx, claim.summary || "", W - pad * 2).slice(0, story ? 7 : 4)
       .forEach((line) => {
         ctx.fillText(line, pad, y);
@@ -137,26 +154,49 @@ const MentiroCard = (() => {
     ctx.fillStyle = "#f15d5a";
     ctx.fillRect(pad, foot - 24, W - pad * 2, 3);
     ctx.fillStyle = "#f6f3ee";
-    ctx.font = "700 28px Literata, serif";
+    ctx.font = face(700, 28, false);
     const kind = source && source.kind ? `${source.kind} · ` : "";
     const sourceText = source ? `${kind}${source.title || source.url}` : "Sem página https";
     wrap(ctx, sourceText, W - pad * 2).slice(0, 2).forEach((line, index) => {
       ctx.fillText(line, pad, foot + index * 36);
     });
     if (claim.correction) {
-      ctx.font = "500 26px Literata, serif";
+      ctx.font = face(500, 26, false);
       wrap(ctx, `Correção: ${claim.correction}`, W - pad * 2).slice(0, 2).forEach((line, index) => {
         ctx.fillText(line, pad, foot + 84 + index * 34);
       });
     }
 
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    return await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+  }
+
+  function filename(claim, format) {
+    return `mentirometro-${claim.id || "checagem"}${format === "stories" ? "-stories" : ""}.png`;
+  }
+
+  function download(blob, name) {
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `mentirometro-${claim.id || "checagem"}${story ? "-stories" : ""}.png`;
+    link.download = name;
     link.click();
     setTimeout(() => URL.revokeObjectURL(link.href), 1500);
   }
 
-  return { png };
+  async function png(claim, format) {
+    const blob = await draw(claim, format);
+    download(blob, filename(claim, format));
+  }
+
+  async function share(claim, format) {
+    const blob = await draw(claim, format || "feed");
+    const image = new File([blob], filename(claim, format || "feed"), { type: "image/png" });
+    if (navigator.canShare && navigator.canShare({ files: [image] })) {
+      await navigator.share({ files: [image], title: "Mentirômetro" });
+      return "shared";
+    }
+    download(blob, image.name);
+    return "saved";
+  }
+
+  return { png, share };
 })();

@@ -627,6 +627,23 @@ def metodo() -> FileResponse:
     return FileResponse(STATIC / "metodo.html")
 
 
+@app.get("/pwa")
+def pwa() -> FileResponse:
+    return FileResponse(STATIC / "pwa.html")
+
+
+@app.get("/manifest.webmanifest")
+def manifest() -> FileResponse:
+    return FileResponse(STATIC / "manifest.webmanifest", media_type="application/manifest+json")
+
+
+@app.get("/sw.js")
+def service_worker() -> Response:
+    response = FileResponse(STATIC / "sw.js", media_type="application/javascript")
+    response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
 class ReportBody(BaseModel):
     claim_id: int = Field(ge=1)
     note: str = Field(min_length=8, max_length=500)

@@ -66,12 +66,22 @@
       border: 1px solid var(--coral);
     }
     button:hover { background: var(--ie-coral-deep); border-color: var(--ie-coral-deep); color: var(--night); }
-    button.ghost {
+    a.ghost, button.ghost {
       background: transparent;
       color: var(--ie-ink-soft);
       border-color: var(--ie-line);
     }
-    button.ghost:hover {
+    a.ghost {
+      display: inline-flex;
+      align-items: center;
+      min-height: 42px;
+      padding: 10px 14px;
+      text-decoration: none;
+      font-family: "Archivo Black", sans-serif;
+      letter-spacing: 0.03em;
+      border: 1px solid var(--ie-line);
+    }
+    a.ghost:hover, button.ghost:hover {
       background: var(--ie-accent-soft);
       color: var(--ie-ink);
     }
@@ -165,6 +175,7 @@
         <button id="aba" type="button" title="Escolha a aba do GloboPlay e marque compartilhar o áudio">Ouvir a aba do GloboPlay</button>
         <button id="new-debate" class="ghost" type="button">Criar o próximo debate</button>
         <button id="reset" class="ghost" type="button">Limpar só a fila</button>
+        <a class="ghost" href="/pwa">Versão de ouvir</a>
       </div>
       <p id="error" class="error"></p>
       <div class="grid">

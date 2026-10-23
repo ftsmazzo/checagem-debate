@@ -1,0 +1,133 @@
+@font-face {
+  font-family: Montserrat;
+  src: url("/static/fonts/montserrat-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: Montserrat;
+  src: url("/static/fonts/montserrat-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: Montserrat;
+  src: url("/static/fonts/montserrat-800.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+:root {
+  --night: #0c0c0c;
+  --paper: #f6f3ee;
+  --coral: #f15d5a;
+  --mark: #4ab848;
+  --plate: #161616;
+  --line: #3a3532;
+  --muted: #b7b0a6;
+  --soft: #ddd6cc;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; background: var(--night); color: var(--paper); }
+body {
+  font: 500 16px/1.55 Montserrat, sans-serif;
+  min-height: 100vh;
+}
+::selection { background: var(--coral); color: var(--night); }
+:focus-visible { outline: 3px solid var(--mark); outline-offset: 2px; }
+button, input { font: inherit; }
+button, .zap {
+  border: 1px solid var(--coral);
+  background: var(--coral);
+  color: var(--night);
+  font-weight: 700;
+  min-height: 48px;
+  padding: 0 16px;
+  cursor: pointer;
+}
+button.ghost {
+  background: transparent;
+  color: var(--paper);
+  border-color: var(--line);
+}
+button.ghost:hover { border-color: var(--mark); color: var(--mark); }
+.zap:hover { background: #ff8a86; border-color: #ff8a86; color: var(--night); }
+.top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 16px 14px;
+  border-bottom: 2px solid var(--coral);
+}
+.top img { width: 44px; height: 44px; }
+.brand { margin: 0; font-weight: 800; font-size: 1.15rem; letter-spacing: -0.03em; }
+.ie { margin: 0; color: var(--coral); font-weight: 700; font-size: 0.78rem; }
+#debate { margin: 2px 0 0; color: var(--soft); font-size: 0.92rem; }
+#install { margin-left: auto; }
+main { width: min(720px, calc(100% - 28px)); margin: 0 auto; padding: 18px 0 48px; }
+.listen { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+#cbn { flex: 1 1 180px; }
+#status, .meta { color: var(--muted); font-size: 0.86rem; }
+#error:not(:empty) { color: #ff6b6b; }
+details { width: 100%; margin-top: 4px; }
+summary { font-weight: 700; cursor: pointer; color: var(--soft); }
+#channel { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+#url {
+  flex: 1 1 200px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  background: #121212;
+  color: var(--paper);
+  caret-color: var(--coral);
+}
+h2 {
+  margin: 28px 0 10px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.chunk, .claim {
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.chunk p, .claim .sum { margin: 0; }
+.live .meta { color: var(--mark); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.72rem; }
+.who { margin: 8px 0 0; font-weight: 700; }
+.stamp {
+  display: inline-block;
+  margin: 10px 0 8px;
+  padding: 4px 8px;
+  border: 3px solid currentColor;
+  outline: 1px solid currentColor;
+  outline-offset: -6px;
+  background: transparent;
+  font-weight: 800;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  transform: rotate(-2deg);
+}
+.stamp.sustentado { color: #3dce8f; }
+.stamp.sustentado_ressalva { color: #b7d36a; }
+.stamp.nao_e_bem_assim { color: #e2b34a; }
+.stamp.exagerado, .stamp.promessa { color: #f0a05a; }
+.stamp.distorcido { color: #f3a0a8; }
+.stamp.contradito, .stamp.erro { color: #ff6b6b; }
+.stamp.sem_prova { color: #c8c2ba; }
+.stamp.pendente, .stamp.processando,
+.stamp.sem_evidencia, .stamp.inconclusivo,
+.stamp.sem_prova_publica, .stamp.versoes_em_disputa,
+.stamp.indicio, .stamp.dados_incompletos, .stamp.audio_confuso { color: #a9bdd4; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+a { color: var(--paper); }
+@media (prefers-reduced-motion: reduce) {
+  .stamp { transform: none; }
+}

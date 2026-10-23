@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-face="montserrat">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0c0c0c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Mentirômetro">
+  <title>Ouvir · Mentirômetro</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" type="image/png" href="/static/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch.png">
+  <link rel="stylesheet" href="/static/pwa.css">
+</head>
+<body>
+  <header class="top">
+    <img src="/static/logo-ie-icon.png" alt="Inteligência Eleitoral" width="44" height="44">
+    <div>
+      <p class="ie">inteligência eleitoral</p>
+      <p class="brand">Mentirômetro</p>
+      <p id="debate">Debate ativo</p>
+    </div>
+    <button id="install" type="button" hidden>Instalar</button>
+  </header>
+  <main>
+    <p id="error" role="status"></p>
+    <section class="listen">
+      <button id="cbn" type="button">Ouvir a CBN</button>
+      <button id="stop" class="ghost" type="button">Parar</button>
+      <p id="status"></p>
+      <details>
+        <summary>Outro canal de rádio</summary>
+        <form id="channel">
+          <input id="url" type="url" inputmode="url" placeholder="Link do canal" autocomplete="off" required>
+          <button type="submit">Ouvir este canal</button>
+        </form>
+      </details>
+    </section>
+    <section>
+      <h2>Transcrição</h2>
+      <div id="segments"></div>
+    </section>
+    <section>
+      <h2>Checagens</h2>
+      <div id="claims"></div>
+    </section>
+  </main>
+  <script src="/static/card.js"></script>
+  <script src="/static/pwa.js"></script>
+</body>
+</html>
