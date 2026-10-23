@@ -5,57 +5,38 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Mentirômetro · IEleitoral</title>
   <link rel="icon" type="image/png" href="/static/logo-ie.png">
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/shell.css">
   <style>
-    :root {
-      --bg: #0f141c; --surface: #1a222f; --ink: #f2f4f8; --muted: #9aa6b8;
-      --line: #2c3648; --coral: #e8786a; --ok: #3dce8f; --warn: #e0a43a; --bad: #ff6b6b;
-    }
-    * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--ink); font-family: Montserrat, system-ui, sans-serif; }
-    header, main { width: min(1100px, calc(100% - 28px)); margin: 0 auto; }
-    header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 28px 0 12px; }
-    h1 { margin: 0; font-size: 1.6rem; }
-    .kicker { margin: 0 0 4px; color: var(--coral); font-size: 0.85rem; font-weight: 700; }
-    .nav { display: flex; gap: 8px; }
-    .nav a, a.back {
-      display: inline-flex; align-items: center; min-height: 42px; padding: 0 16px;
-      border-radius: 999px; border: 1px solid var(--line); background: var(--surface);
-      color: var(--ink); font-weight: 800; text-decoration: none;
-    }
-    .nav a.here, a.back { background: var(--coral); border-color: transparent; color: #fff; }
-    .lead { max-width: 62ch; color: #d5dde8; }
-    .login, .card, .phrase { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+    main { width: min(1100px, calc(100% - 32px)); margin: 0 auto; padding: 20px 0 48px; }
+    .lead { max-width: 62ch; }
+    .login, .card, .phrase { background: var(--plate); border: 2px solid var(--ink); padding: 16px; }
     .login { display: flex; gap: 8px; max-width: 420px; }
-    input, select, button { font: inherit; border-radius: 10px; border: 1px solid var(--line); background: #222b3a; color: var(--ink); padding: 10px 12px; }
-    button { background: var(--coral); color: #1a1010; font-weight: 800; cursor: pointer; }
+    input, select, button { font: inherit; border: 2px solid var(--ink); background: #fff; color: var(--ink); padding: 10px 12px; }
+    button { background: var(--ink); color: var(--cotton); font-family: "Archivo Black", sans-serif; cursor: pointer; }
     .bar { display: flex; gap: 8px; align-items: center; margin: 12px 0 18px; flex-wrap: wrap; }
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .pct { font-size: 2.4rem; font-weight: 800; margin: 8px 0; }
-    .meta { color: var(--muted); font-size: 0.85rem; }
-    .counts { display: flex; gap: 10px; flex-wrap: wrap; font-size: 0.82rem; }
+    .pct { font-family: "Archivo Black", sans-serif; font-size: 2.4rem; margin: 8px 0; }
+    .meta { color: #3f3f3f; font-size: 0.9rem; }
+    .counts { display: flex; gap: 10px; flex-wrap: wrap; }
     .phrase { margin-top: 10px; }
-    .phrase a { color: var(--coral); }
-    .phrase strong { display: block; margin-bottom: 6px; }
-    .chip { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
-    .sustentado, .sustentado_ressalva { color: var(--ok); }
-    .contradito, .distorcido, .sem_prova { color: var(--bad); }
-    .exagerado, .nao_e_bem_assim, .promessa { color: var(--warn); }
-    .error { color: var(--bad); }
+    .phrase strong { display: block; margin: 8px 0; }
+    a.back {
+      display: inline-flex; align-items: center; min-height: 40px; padding: 0 12px;
+      border: 2px solid var(--ink); text-decoration: none;
+      font-family: "Archivo Black", sans-serif; font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase;
+    }
     @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
-  <header>
-    <div>
-      <p class="kicker">IEleitoral</p>
-      <h1>Mentirômetro</h1>
-    </div>
+  <header class="top">
+    <a class="brand" href="/"><img src="/static/logo-ie.png" alt="" width="36" height="36"><strong>Mentirômetro</strong></a>
     <nav class="nav" aria-label="Seções">
       <a href="/">Ao vivo</a>
-      <a href="/checar">Checar frase</a>
-      <a class="here" href="/dashboard">Placar</a>
       <a href="/leitura">Leitura</a>
+      <a href="/checar">Checar</a>
+      <a class="here" href="/dashboard">Placar</a>
+      <a href="/metodo">Método</a>
     </nav>
   </header>
   <main>

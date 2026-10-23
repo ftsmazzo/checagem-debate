@@ -1,0 +1,122 @@
+@font-face {
+  font-family: "Archivo Black";
+  src: url("/static/fonts/archivo-black.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Literata";
+  src: url("/static/fonts/literata-500.ttf") format("truetype");
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Literata";
+  src: url("/static/fonts/literata-700.ttf") format("truetype");
+  font-weight: 700;
+  font-display: swap;
+}
+:root {
+  --cotton: #f3f1ec;
+  --ink: #161616;
+  --tie: #e85d04;
+  --ok: #0b6b3a;
+  --ok-bg: #d9f3e4;
+  --warn: #8a4b08;
+  --warn-bg: #ffe7c2;
+  --bad: #a4161a;
+  --bad-bg: #ffd6d4;
+  --open: #1d4e89;
+  --open-bg: #d9e6f5;
+  --plate: #fffdf8;
+  --line: #161616;
+  --ie-bg: var(--cotton);
+  --ie-bg-soft: var(--plate);
+  --ie-surface: var(--plate);
+  --ie-surface-2: #fff;
+  --ie-ink: var(--ink);
+  --ie-ink-soft: #2a2a2a;
+  --ie-muted: #3f3f3f;
+  --ie-line: #d9d3c7;
+  --ie-coral: var(--ink);
+  --ie-coral-deep: #2a2a2a;
+  --ie-coral-soft: var(--warn-bg);
+  --ie-accent: var(--open);
+  --ie-accent-soft: var(--open-bg);
+  --ie-success: var(--ok-bg);
+  --ie-warn: var(--warn-bg);
+  --ie-danger: var(--bad);
+  --ie-radius: 0px;
+  --ie-radius-sm: 0px;
+  --ie-shadow: none;
+  --ie-font: Literata, Georgia, serif;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--cotton);
+  color: var(--ink);
+  font-family: Literata, Georgia, serif;
+  font-size: 1.05rem;
+  line-height: 1.55;
+}
+::selection { background: #ffd0a8; color: var(--ink); }
+:focus-visible { outline: 3px solid var(--tie); outline-offset: 2px; }
+a { color: var(--ink); }
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px 28px;
+  background: var(--plate);
+  border-bottom: 2px solid var(--ink);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.brand img { width: 36px; height: 36px; object-fit: cover; }
+.brand strong {
+  font-family: "Archivo Black", sans-serif;
+  font-weight: 400;
+  font-size: 1.15rem;
+  letter-spacing: -0.03em;
+}
+.nav { display: flex; flex-wrap: wrap; gap: 8px; }
+.nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 2px solid var(--ink);
+  background: var(--plate);
+  color: var(--ink);
+  font-family: "Archivo Black", sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+.nav a.here { background: var(--ink); color: var(--cotton); }
+.nav a:hover { background: var(--tie); color: #fff; border-color: var(--tie); }
+.stamp, .chip {
+  display: inline-block;
+  padding: 4px 8px;
+  font-family: "Archivo Black", sans-serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.ok, .sustentado, .sustentado_ressalva { background: var(--ok-bg); color: var(--ok); }
+.warn, .exagerado, .nao_e_bem_assim, .promessa { background: var(--warn-bg); color: var(--warn); }
+.bad, .contradito, .distorcido, .sem_prova, .erro { background: var(--bad-bg); color: var(--bad); }
+.open, .pendente, .processando, .sem_evidencia, .inconclusivo, .sem_prova_publica, .versoes_em_disputa, .indicio, .dados_incompletos, .audio_confuso { background: var(--open-bg); color: var(--open); }
+@media (max-width: 800px) {
+  .top { padding: 14px 16px; }
+}

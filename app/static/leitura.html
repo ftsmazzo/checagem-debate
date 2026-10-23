@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Leitura · Mentirômetro</title>
   <link rel="icon" type="image/png" href="/static/logo-ie.png">
+  <link rel="stylesheet" href="/static/shell.css">
   <style>
     @font-face {
       font-family: "Archivo Black";
@@ -57,8 +58,8 @@
       align-items: center;
       padding: 22px 40px 8px;
     }
-    .nav, .filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-    .nav a, select, button, textarea {
+    .filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    select, button, textarea {
       font-family: "Archivo Black", sans-serif;
       letter-spacing: 0.04em;
       border: 2px solid var(--ink);
@@ -67,23 +68,9 @@
       color: var(--ink);
       min-height: 48px;
     }
-    .nav a {
-      display: inline-flex;
-      align-items: center;
-      padding: 0 14px;
-      text-decoration: none;
-      text-transform: uppercase;
-    }
-    .nav a::before { content: '"'; }
-    .nav a::after { content: '"'; }
-    .nav a.here, .nav a:hover, button:hover, select:hover {
-      background: var(--ink);
-      color: var(--cotton);
-    }
     select, button { padding: 0 14px; cursor: pointer; }
     button { background: var(--ink); color: var(--cotton); }
-    button:hover { background: var(--tie); color: var(--ink); }
-    select { appearance: none; padding-right: 28px; }
+    button:hover { background: var(--tie); color: #fff; }
     main { padding: 8px 40px 64px; }
     .fala { max-width: 74ch; margin: 36px 0 0; }
     .fala + .fala { margin-top: 56px; }
@@ -91,11 +78,11 @@
       font-family: "Archivo Black", sans-serif;
       font-weight: 400;
       letter-spacing: -0.03em;
-      line-height: 0.98;
+      line-height: 1.05;
       margin: 0 0 14px;
-      max-width: 18ch;
+      max-width: 28ch;
     }
-    .fala:first-child .q { font-size: clamp(2.4rem, 5vw, 3.6rem); }
+    .fala:first-child .q { font-size: clamp(1.8rem, 3.2vw, 2.7rem); max-width: 22ch; }
     .fala:not(:first-child) .q { font-size: clamp(1.6rem, 3vw, 2.2rem); }
     .q::before, .q::after { content: '"'; }
     .tie {
@@ -122,9 +109,7 @@
       text-transform: uppercase;
     }
     .who { margin: 0 0 8px; }
-    .stamp { margin: 18px 0 8px; font-size: 1.15rem; }
-    .stamp::before { content: '"'; }
-    .stamp::after { content: '"'; }
+    .stamp { margin: 18px 0 8px; font-size: 0.95rem; padding: 6px 10px; }
     .sum, .miss { margin: 0 0 12px; max-width: 70ch; }
     .miss { color: #3a3a3a; }
     ul { margin: 12px 0 0; padding: 0; list-style: none; }
@@ -171,13 +156,17 @@
   </style>
 </head>
 <body>
-  <div class="stripe" aria-hidden="true"></div>
-  <div class="bar">
+  <header class="top">
+    <a class="brand" href="/"><img src="/static/logo-ie.png" alt="" width="36" height="36"><strong>Mentirômetro</strong></a>
     <nav class="nav" aria-label="Seções">
-      <a href="/leitura">Mentirômetro</a>
+      <a href="/">Ao vivo</a>
       <a class="here" href="/leitura">Leitura</a>
+      <a href="/checar">Checar</a>
+      <a href="/dashboard">Placar</a>
       <a href="/metodo">Método</a>
     </nav>
+  </header>
+  <div class="bar">
     <div class="filters">
       <select id="speaker" aria-label="Candidato">
         <option value="">Os dois</option>
@@ -228,6 +217,13 @@
       select.value = current;
     }
 
+    function tone(status) {
+      if (status === "sustentado" || status === "sustentado_ressalva") return "ok";
+      if (status === "exagerado" || status === "nao_e_bem_assim" || status === "promessa") return "warn";
+      if (status === "contradito" || status === "distorcido" || status === "sem_prova" || status === "erro") return "bad";
+      return "open";
+    }
+
     function card(claim, live) {
       const sources = (claim.sources || []).map((source) =>
         `<li><span class="kind">"${escapeHtml(source.kind || "fonte")}"</span> <a href="${escapeHtml(source.url)}" target="_blank" rel="noopener">${escapeHtml(source.title || "página")}</a><br>${escapeHtml(source.excerpt || source.note || "")}</li>`
@@ -244,7 +240,7 @@
         ${tie}
         <${title} class="q">${escapeHtml(claim.normalized || claim.quote)}</${title}>
         <p class="who">${escapeHtml(whoLine)}</p>
-        <p class="stamp">${escapeHtml(labels[claim.status] || claim.status)}</p>
+        <p class="stamp ${tone(claim.status)}">${escapeHtml(labels[claim.status] || claim.status)}</p>
         <p class="sum">${escapeHtml(claim.summary || "")}</p>
         ${claim.missing ? `<p class="miss">${escapeHtml(claim.missing)}</p>` : ""}
         ${sources ? `<ul>${sources}</ul>` : ""}

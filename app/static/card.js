@@ -1,23 +1,23 @@
 const MentiroCard = (() => {
   const STAMP = {
-    sustentado: ["SUSTENTADO", "#3dce8f"],
-    contradito: ["CONTRADITO", "#ff6b6b"],
-    exagerado: ["EXAGERADO", "#e0a43a"],
-    sem_evidencia: ["SEM FONTE", "#7b93ff"],
-    inconclusivo: ["EM ABERTO", "#7b93ff"],
-    sustentado_ressalva: ["COM RESSALVA", "#3dce8f"],
-    nao_e_bem_assim: ["NÃO É BEM ASSIM", "#e0a43a"],
-    distorcido: ["DISTORCIDO", "#ff6b6b"],
-    sem_prova: ["SEM PROVA", "#ff6b6b"],
-    sem_prova_publica: ["SEM PROVA PÚBLICA", "#7b93ff"],
-    versoes_em_disputa: ["EM DISPUTA", "#7b93ff"],
-    indicio: ["INDÍCIO", "#7b93ff"],
-    dados_incompletos: ["DADOS INCOMPLETOS", "#7b93ff"],
-    audio_confuso: ["ÁUDIO CONFUSO", "#7b93ff"],
-    promessa: ["PROMESSA", "#e0a43a"],
-    pendente: ["CHECANDO", "#9aa6b8"],
-    processando: ["CHECANDO", "#9aa6b8"],
-    erro: ["ERRO", "#ff6b6b"],
+    sustentado: ["SUSTENTADO", "#0b6b3a", "#d9f3e4"],
+    sustentado_ressalva: ["COM RESSALVA", "#0b6b3a", "#d9f3e4"],
+    nao_e_bem_assim: ["NÃO É BEM ASSIM", "#8a4b08", "#ffe7c2"],
+    exagerado: ["EXAGERADO", "#8a4b08", "#ffe7c2"],
+    promessa: ["PROMESSA", "#8a4b08", "#ffe7c2"],
+    distorcido: ["DISTORCIDO", "#a4161a", "#ffd6d4"],
+    contradito: ["CONTRADITO", "#a4161a", "#ffd6d4"],
+    sem_prova: ["SEM PROVA", "#a4161a", "#ffd6d4"],
+    erro: ["ERRO", "#a4161a", "#ffd6d4"],
+    sem_prova_publica: ["SEM PROVA PÚBLICA", "#1d4e89", "#d9e6f5"],
+    versoes_em_disputa: ["EM DISPUTA", "#1d4e89", "#d9e6f5"],
+    indicio: ["INDÍCIO", "#1d4e89", "#d9e6f5"],
+    dados_incompletos: ["DADOS INCOMPLETOS", "#1d4e89", "#d9e6f5"],
+    audio_confuso: ["ÁUDIO CONFUSO", "#1d4e89", "#d9e6f5"],
+    sem_evidencia: ["SEM FONTE", "#1d4e89", "#d9e6f5"],
+    inconclusivo: ["EM ABERTO", "#1d4e89", "#d9e6f5"],
+    pendente: ["CHECANDO", "#1d4e89", "#d9e6f5"],
+    processando: ["CHECANDO", "#1d4e89", "#d9e6f5"],
   };
   const WHO = { lula: "Lula", flavio: "Flávio", avulsa: "Checagem" };
 
@@ -38,88 +38,81 @@ const MentiroCard = (() => {
     return lines;
   }
 
-  function round(ctx, x, y, w, h, r) {
-    ctx.beginPath();
-    ctx.roundRect(x, y, w, h, r);
+  async function faces() {
+    if (document.fonts.check("16px 'Archivo Black'")) return;
+    const black = new FontFace("Archivo Black", "url(/static/fonts/archivo-black.ttf)");
+    const body = new FontFace("Literata", "url(/static/fonts/literata-500.ttf)", { weight: "500" });
+    const bold = new FontFace("Literata", "url(/static/fonts/literata-700.ttf)", { weight: "700" });
+    const loaded = await Promise.all([black.load(), body.load(), bold.load()]);
+    loaded.forEach((face) => document.fonts.add(face));
   }
 
   async function png(claim, format) {
-    await document.fonts.load('800 64px Montserrat').catch(() => {});
+    await faces();
     const story = format === "stories";
     const W = 1080;
     const H = story ? 1920 : 1350;
-    const pad = 84;
+    const pad = 88;
+    const [stamp, ink, wash] = STAMP[claim.status] || ["CHECAGEM", "#161616", "#f3f1ec"];
     const canvas = document.createElement("canvas");
     canvas.width = W;
     canvas.height = H;
     const ctx = canvas.getContext("2d");
-    ctx.fillStyle = "#0f141c";
+    ctx.fillStyle = "#f3f1ec";
     ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = "#e8786a";
-    ctx.fillRect(0, 0, W, 18);
+    ctx.fillStyle = ink;
+    ctx.fillRect(0, 0, 36, H);
 
-    ctx.fillStyle = "#e8786a";
-    ctx.font = "800 34px Montserrat, sans-serif";
+    ctx.fillStyle = "#161616";
+    ctx.font = "400 34px 'Archivo Black', sans-serif";
     ctx.textBaseline = "top";
-    ctx.fillText("MENTIRÔMETRO", pad, story ? 120 : 72);
-    ctx.fillStyle = "#9aa6b8";
-    ctx.font = "700 24px Montserrat, sans-serif";
-    ctx.fillText("IEleitoral", pad, story ? 168 : 116);
+    ctx.fillText("MENTIRÔMETRO", pad, story ? 120 : 78);
 
     const who = WHO[claim.speaker] || "Checagem";
-    ctx.fillStyle = "#f2f4f8";
-    ctx.font = "800 36px Montserrat, sans-serif";
-    ctx.fillText(who.toUpperCase(), pad, story ? 250 : 190);
+    ctx.font = "500 32px Literata, serif";
+    ctx.fillText(who, pad, story ? 180 : 132);
 
-    const quote = claim.normalized || claim.quote || "";
-    ctx.font = "700 46px Montserrat, sans-serif";
-    const quoteLines = wrap(ctx, quote, W - pad * 2 - 64).slice(0, story ? 8 : 5);
-    const boxH = 72 + quoteLines.length * 62;
-    const boxY = story ? 330 : 260;
-    round(ctx, pad, boxY, W - pad * 2, boxH, 28);
-    ctx.fillStyle = "#1a222f";
-    ctx.fill();
-    ctx.fillStyle = "#f2f4f8";
-    quoteLines.forEach((line, i) => ctx.fillText(line, pad + 32, boxY + 36 + i * 62));
+    const quote = `"${claim.normalized || claim.quote || ""}"`;
+    ctx.font = "400 64px 'Archivo Black', sans-serif";
+    const quoteLines = wrap(ctx, quote, W - pad * 2).slice(0, story ? 8 : 5);
+    let y = story ? 280 : 220;
+    quoteLines.forEach((line) => {
+      ctx.fillText(line, pad, y);
+      y += 74;
+    });
 
-    const [stamp, color] = STAMP[claim.status] || [String(claim.status || "CHECAGEM").toUpperCase(), "#e8786a"];
-    ctx.font = "800 64px Montserrat, sans-serif";
-    const stampW = ctx.measureText(stamp).width + 72;
-    const stampH = 118;
-    const stampY = boxY + boxH + (story ? 90 : 64);
-    ctx.save();
-    ctx.translate(pad + stampW / 2 + 8, stampY + stampH / 2);
-    ctx.rotate(-0.06);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 8;
-    round(ctx, -stampW / 2, -stampH / 2, stampW, stampH, 18);
-    ctx.stroke();
-    ctx.fillStyle = color;
-    ctx.textAlign = "center";
+    y += story ? 48 : 36;
+    ctx.font = "400 42px 'Archivo Black', sans-serif";
+    const stampW = Math.min(ctx.measureText(stamp).width + 48, W - pad * 2);
+    const stampH = 78;
+    ctx.fillStyle = wash;
+    ctx.fillRect(pad, y, stampW, stampH);
+    ctx.fillStyle = ink;
     ctx.textBaseline = "middle";
-    ctx.fillText(stamp, 0, 2);
-    ctx.restore();
-
-    ctx.textAlign = "left";
+    ctx.fillText(stamp, pad + 24, y + stampH / 2 + 2);
     ctx.textBaseline = "top";
-    ctx.fillStyle = "#d5dde8";
-    ctx.font = "500 36px Montserrat, sans-serif";
-    const summaryY = stampY + stampH + (story ? 70 : 48);
-    wrap(ctx, claim.summary || "", W - pad * 2).slice(0, story ? 6 : 4)
-      .forEach((line, i) => ctx.fillText(line, pad, summaryY + i * 50));
+
+    y += stampH + (story ? 48 : 36);
+    ctx.fillStyle = "#161616";
+    ctx.font = "500 36px Literata, serif";
+    wrap(ctx, claim.summary || "", W - pad * 2).slice(0, story ? 7 : 4)
+      .forEach((line) => {
+        ctx.fillText(line, pad, y);
+        y += 48;
+      });
 
     const source = (claim.sources || []).find((item) => item && item.url);
-    const foot = H - (story ? 180 : 110);
-    ctx.fillStyle = "#2c3648";
-    ctx.fillRect(pad, foot - 28, W - pad * 2, 3);
-    ctx.fillStyle = "#9aa6b8";
-    ctx.font = "700 24px Montserrat, sans-serif";
-    const sourceLine = source ? String(source.title || source.url).slice(0, 70) : "Fontes no painel";
+    const foot = H - (story ? 160 : 96);
+    ctx.fillStyle = "#161616";
+    ctx.fillRect(pad, foot - 24, W - pad * 2, 3);
+    ctx.font = "700 28px Literata, serif";
+    const kind = source && source.kind ? `${source.kind} · ` : "";
+    const sourceLine = source ? `${kind}${String(source.title || source.url)}`.slice(0, 72) : "Sem página https";
     ctx.fillText(sourceLine, pad, foot);
-    ctx.fillStyle = "#f2f4f8";
-    ctx.font = "800 28px Montserrat, sans-serif";
-    const host = "mentirômetro";
-    ctx.fillText(host, W - pad - ctx.measureText(host).width, foot);
+    if (claim.correction) {
+      ctx.font = "500 26px Literata, serif";
+      ctx.fillText(`Correção: ${String(claim.correction).slice(0, 90)}`, pad, foot + 42);
+    }
 
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
     const link = document.createElement("a");

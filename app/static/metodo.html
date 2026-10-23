@@ -5,45 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Método · Mentirômetro</title>
   <link rel="icon" type="image/png" href="/static/logo-ie.png">
+  <link rel="stylesheet" href="/static/shell.css">
   <style>
-    @font-face { font-family: "Archivo Black"; src: url("/static/fonts/archivo-black.ttf") format("truetype"); font-weight: 400; font-display: swap; }
-    @font-face { font-family: "Literata"; src: url("/static/fonts/literata-500.ttf") format("truetype"); font-weight: 500; font-display: swap; }
-    @font-face { font-family: "Literata"; src: url("/static/fonts/literata-700.ttf") format("truetype"); font-weight: 700; font-display: swap; }
-    :root { --cotton: #f4f4f2; --ink: #111; --tie: #ff5a1f; }
-    * { box-sizing: border-box; }
-    body { margin: 0; background: var(--cotton); color: var(--ink); font-family: Literata, Georgia, serif; font-size: 1.05rem; line-height: 1.6; }
-    ::selection { background: var(--tie); color: var(--ink); }
-    :focus-visible { outline: 3px solid var(--tie); outline-offset: 3px; }
-    .stripe { height: 72px; background: repeating-linear-gradient(45deg, #111 0 16px, #ff5a1f 16px 32px); }
-    .bar { display: flex; gap: 10px; flex-wrap: wrap; padding: 22px 40px 0; }
-    .nav a {
-      display: inline-flex; align-items: center; min-height: 48px; padding: 0 14px;
-      border: 2px solid var(--ink); background: #fff; color: var(--ink);
-      font-family: "Archivo Black", sans-serif; letter-spacing: 0.04em; text-decoration: none; text-transform: uppercase;
-    }
-    .nav a::before { content: '"'; }
-    .nav a::after { content: '"'; }
-    .nav a.here, .nav a:hover { background: var(--ink); color: var(--cotton); }
     main { max-width: 70ch; padding: 28px 40px 72px; }
-    h1 { font-family: "Archivo Black", sans-serif; font-size: clamp(2.6rem, 6vw, 4rem); line-height: 0.95; letter-spacing: -0.03em; margin: 28px 0 18px; max-width: 12ch; }
-    h1::before, h1::after { content: '"'; }
-    h2 { font-family: "Archivo Black", sans-serif; font-size: 1.4rem; letter-spacing: 0.03em; text-transform: uppercase; margin: 2.2rem 0 0.6rem; }
-    h2::before { content: '"'; }
-    h2::after { content: '"'; }
+    h1 { font-family: "Archivo Black", sans-serif; font-size: clamp(2.2rem, 5vw, 3.2rem); line-height: 1; letter-spacing: -0.03em; margin: 12px 0 18px; }
+    h2 { font-family: "Archivo Black", sans-serif; font-size: 1.15rem; letter-spacing: 0.03em; text-transform: uppercase; margin: 2.2rem 0 0.6rem; }
     p, li { max-width: 70ch; }
-    a { color: var(--ink); }
-    @media (max-width: 720px) { .stripe { height: 48px; } .bar, main { padding-left: 16px; padding-right: 16px; } }
+    @media (max-width: 720px) { main { padding-left: 16px; padding-right: 16px; } }
   </style>
 </head>
 <body>
-  <div class="stripe" aria-hidden="true"></div>
-  <div class="bar">
+  <header class="top">
+    <a class="brand" href="/"><img src="/static/logo-ie.png" alt="" width="36" height="36"><strong>Mentirômetro</strong></a>
     <nav class="nav" aria-label="Seções">
-      <a href="/leitura">Mentirômetro</a>
+      <a href="/">Ao vivo</a>
       <a href="/leitura">Leitura</a>
+      <a href="/checar">Checar</a>
+      <a href="/dashboard">Placar</a>
       <a class="here" href="/metodo">Método</a>
     </nav>
-  </div>
+  </header>
   <main>
     <h1>Método</h1>
     <p>O Mentirômetro acompanha a fala enquanto ela está no ar. Cada checagem mostra o carimbo, o contexto e a fonte. Não há nota de quem ganhou o debate.</p>

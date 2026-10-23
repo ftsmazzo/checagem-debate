@@ -5,52 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Checar frase · Mentirômetro</title>
   <link rel="icon" type="image/png" href="/static/logo-ie.png">
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/shell.css">
   <style>
-    :root {
-      --bg: #0f141c; --surface: #1a222f; --ink: #f2f4f8; --muted: #9aa6b8;
-      --line: #2c3648; --coral: #e8786a; --soft: #d5dde8;
-    }
-    * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--ink); font-family: Montserrat, system-ui, sans-serif; }
-    header, main { width: min(820px, calc(100% - 28px)); margin: 0 auto; }
-    header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 28px 0 8px; }
-    h1 { margin: 0; font-size: 1.6rem; }
-    .kicker { margin: 0 0 4px; color: var(--coral); font-weight: 700; }
-    .nav { display: flex; gap: 8px; flex-wrap: wrap; }
-    .nav a {
-      display: inline-flex; align-items: center; min-height: 42px; padding: 0 16px;
-      border-radius: 999px; border: 1px solid var(--line); background: var(--surface);
-      color: var(--ink); font-weight: 800; text-decoration: none;
-    }
-    .nav a.here { background: var(--coral); border-color: transparent; color: #fff; }
-    .lead { color: var(--soft); max-width: 62ch; }
-    form, article, .login {
-      background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px;
-    }
+    main { width: min(820px, calc(100% - 32px)); margin: 0 auto; padding: 20px 0 48px; }
+    .lead { max-width: 62ch; }
+    form, article, .login { background: var(--plate); border: 2px solid var(--ink); padding: 16px; }
     .login { display: flex; gap: 8px; }
     form { display: flex; flex-direction: column; gap: 10px; }
-    textarea, select, input, button { font: inherit; border-radius: 10px; border: 1px solid var(--line); background: #222b3a; color: var(--ink); padding: 12px; }
+    textarea, select, input, button { font: inherit; border: 2px solid var(--ink); background: #fff; color: var(--ink); padding: 12px; }
     textarea { min-height: 160px; width: 100%; resize: vertical; }
-    button { background: var(--coral); color: #1a1010; font-weight: 800; cursor: pointer; }
-    button.ghost { background: transparent; color: var(--ink); }
+    button { background: var(--ink); color: var(--cotton); font-family: "Archivo Black", sans-serif; cursor: pointer; }
+    button.ghost { background: #fff; color: var(--ink); }
     article { margin-top: 12px; }
-    .meta { color: var(--muted); }
-    a { color: var(--coral); }
-    .error { color: #ffb4b4; }
-    .row { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+    .error { color: var(--bad); }
+    .row { display: flex; justify-content: space-between; gap: 8px; align-items: center; flex-wrap: wrap; }
   </style>
 </head>
 <body>
-  <header>
-    <div>
-      <p class="kicker">IEleitoral</p>
-      <h1>Checar uma frase</h1>
-    </div>
-    <nav class="nav">
+  <header class="top">
+    <a class="brand" href="/"><img src="/static/logo-ie.png" alt="" width="36" height="36"><strong>Mentirômetro</strong></a>
+    <nav class="nav" aria-label="Seções">
       <a href="/">Ao vivo</a>
-      <a class="here" href="/checar">Checar frase</a>
+      <a href="/leitura">Leitura</a>
+      <a class="here" href="/checar">Checar</a>
       <a href="/dashboard">Placar</a>
+      <a href="/metodo">Método</a>
     </nav>
   </header>
   <main>

@@ -1,129 +1,29 @@
 <!DOCTYPE html>
-<html lang="pt-BR" data-theme="dark">
+<html lang="pt-BR">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#e8786a">
-  <title>Sistema de checagem debate · IEleitoral</title>
+  <meta name="theme-color" content="#f3f1ec">
+  <title>Ao vivo · Mentirômetro</title>
   <link rel="icon" type="image/png" href="/static/logo-ie.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/shell.css">
   <style>
-    :root {
-      --ie-bg: #0f141c;
-      --ie-bg-soft: #171e29;
-      --ie-surface: #1a222f;
-      --ie-surface-2: #222b3a;
-      --ie-ink: #f2f4f8;
-      --ie-ink-soft: #d5dde8;
-      --ie-muted: #9aa6b8;
-      --ie-line: #2c3648;
-      --ie-coral: #e8786a;
-      --ie-coral-deep: #f08a7d;
-      --ie-coral-soft: rgba(232, 120, 106, 0.2);
-      --ie-accent: #7b93ff;
-      --ie-accent-soft: rgba(91, 124, 250, 0.18);
-      --ie-success: #3dce8f;
-      --ie-warn: #e0a43a;
-      --ie-danger: #ff6b6b;
-      --ie-radius: 16px;
-      --ie-radius-sm: 10px;
-      --ie-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
-      --ie-font: "Montserrat", system-ui, sans-serif;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      color: var(--ie-ink);
-      background:
-        radial-gradient(900px 420px at 8% -8%, rgba(232, 120, 106, 0.18), transparent 55%),
-        radial-gradient(800px 380px at 92% 0%, rgba(91, 124, 250, 0.16), transparent 50%),
-        var(--ie-bg);
-      font-family: var(--ie-font);
-      font-weight: 500;
-      -webkit-font-smoothing: antialiased;
-    }
-    header, main { width: min(1180px, calc(100% - 28px)); margin: 0 auto; }
-    header {
-      padding: 28px 0 12px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-    }
-    .nav { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-    .nav a {
-      display: inline-flex;
-      align-items: center;
-      min-height: 42px;
-      padding: 0 16px;
-      border-radius: 999px;
-      border: 1px solid var(--ie-line);
-      background: var(--ie-surface);
-      color: var(--ie-ink);
-      font-weight: 800;
-      text-decoration: none;
-    }
-    .nav a.here { background: var(--ie-coral); border-color: transparent; color: #fff; }
+    main { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
     .saved {
-      margin: 0 0 12px;
-      padding: 14px 16px;
-      border-radius: var(--ie-radius);
-      background: var(--ie-surface);
-      border: 1px solid var(--ie-line);
-      border-left: 4px solid var(--ie-coral);
+      margin: 16px 0 0;
+      padding: 12px 14px;
+      background: var(--plate);
+      border: 2px solid var(--ink);
     }
     .saved strong { display: block; margin-bottom: 4px; }
     .lead { margin: 0 0 12px; color: var(--ie-ink-soft); max-width: 62ch; }
     .tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 12px 0; }
-    .tools a.placar {
-      display: inline-flex;
-      align-items: center;
-      min-height: 42px;
-      padding: 0 16px;
-      border-radius: 999px;
-      background: var(--ie-coral);
-      color: #fff;
-      font-weight: 800;
-      text-decoration: none;
-    }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      min-width: 0;
-    }
-    .brand img {
-      width: 52px;
-      height: 52px;
-      border-radius: 14px;
-      box-shadow: var(--ie-shadow);
-      object-fit: cover;
-      background: var(--ie-surface);
-    }
-    .brand-copy { min-width: 0; }
-    .brand-kicker {
-      margin: 0 0 4px;
-      color: var(--ie-coral);
-      font-size: 0.72rem;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-    h1 {
-      margin: 0;
-      font-size: clamp(1.45rem, 3vw, 2rem);
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      color: var(--ie-ink);
-    }
+    h1 { display: none; }
     .bar, .composer, .login, section {
-      background: var(--ie-surface);
-      border: 1px solid var(--ie-line);
-      border-radius: var(--ie-radius);
-      box-shadow: var(--ie-shadow);
+      background: var(--plate);
+      border: 2px solid var(--ink);
+      border-radius: 0;
+      box-shadow: none;
     }
     .bar, .login {
       display: flex;
@@ -155,14 +55,16 @@
     #url { flex: 1 1 280px; min-width: 220px; }
     textarea { min-height: 140px; width: 100%; resize: vertical; }
     button {
-      background: var(--ie-coral);
-      color: #fff;
+      background: var(--ink);
+      color: var(--cotton);
       padding: 10px 14px;
       cursor: pointer;
-      font-weight: 700;
-      border-color: transparent;
+      font-family: "Archivo Black", sans-serif;
+      font-weight: 400;
+      letter-spacing: 0.03em;
+      border: 2px solid var(--ink);
     }
-    button:hover { background: var(--ie-coral-deep); }
+    button:hover { background: var(--tie); border-color: var(--tie); color: #fff; }
     button.ghost {
       background: transparent;
       color: var(--ie-ink-soft);
@@ -185,9 +87,11 @@
     section { padding: 16px 18px; min-height: 280px; }
     h2 {
       margin: 0 0 12px;
-      font-size: 0.95rem;
-      font-weight: 800;
-      letter-spacing: -0.02em;
+      font-family: "Archivo Black", sans-serif;
+      font-size: 1rem;
+      font-weight: 400;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
     }
     .chunk p { margin: 0; line-height: 1.6; max-width: 68ch; }
     .chunk:first-of-type, .claim:first-of-type { border-top: 0; }
@@ -229,19 +133,13 @@
   </style>
 </head>
 <body>
-  <header>
-    <div class="brand">
-      <img src="/static/logo-ie.png" alt="IEleitoral" width="52" height="52">
-      <div class="brand-copy">
-        <p class="brand-kicker">IEleitoral</p>
-        <h1>Mentirômetro</h1>
-      </div>
-    </div>
+  <header class="top">
+    <a class="brand" href="/"><img src="/static/logo-ie.png" alt="" width="36" height="36"><strong>Mentirômetro</strong></a>
     <nav class="nav" aria-label="Seções">
       <a class="here" href="/">Ao vivo</a>
-      <a href="/checar">Checar frase</a>
-      <a href="/dashboard">Placar</a>
       <a href="/leitura">Leitura</a>
+      <a href="/checar">Checar</a>
+      <a href="/dashboard">Placar</a>
       <a href="/metodo">Método</a>
     </nav>
   </header>
@@ -268,7 +166,6 @@
         <span id="status" class="meta"></span>
       </form>
       <div class="tools">
-        <a class="placar" href="/dashboard">Ver o placar do debate</a>
         <button id="new-debate" class="ghost" type="button">Criar o próximo debate</button>
         <button id="reset" class="ghost" type="button">Limpar só a fila</button>
       </div>
