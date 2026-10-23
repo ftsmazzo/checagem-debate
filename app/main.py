@@ -39,6 +39,7 @@ from app.listener import (
     running_flag,
 )
 from app import ie_mcp
+from app.settings import settings
 from app.transcript import group_turns
 
 sessions: set[str] = set()
