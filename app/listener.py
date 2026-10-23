@@ -152,7 +152,7 @@ class DebateListener:
         self._ephemeral_seq = 0
         self.browser_on = False
         self.browser_thread: threading.Thread | None = None
-        self.browser_queue: queue.Queue[Path] = queue.Queue(maxsize=8)
+        self.browser_queue: queue.Queue[Path] = queue.Queue(maxsize=200)
 
     def start(self, url: str, persist: bool = True) -> None:
         url = resolve_stream(url)
@@ -201,7 +201,8 @@ class DebateListener:
         if not self.browser_on:
             raise RuntimeError("A escuta da aba não está ligada.")
         self.chunk_dir.mkdir(parents=True, exist_ok=True)
-        path = self.chunk_dir / f"aba-{time.time_ns()}.webm"
+        suffix = ".wav" if data[:4] == b"RIFF" else ".webm"
+        path = self.chunk_dir / f"aba-{time.time_ns()}{suffix}"
         path.write_bytes(data)
         try:
             self.browser_queue.put_nowait(path)
