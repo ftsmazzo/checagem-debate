@@ -134,6 +134,7 @@ class VerdictTests(unittest.TestCase):
 
     def test_aceita_bandnews_e_youtube(self):
         self.assertIn("BANDNEWSFM", resolve_stream("bandnews_sp"))
+        self.assertIn("CBN_SPAAC", resolve_stream("cbn_sp"))
         self.assertIn("youtube.com", resolve_stream("https://www.youtube.com/watch?v=Gqc1rQtzWUk"))
         with self.assertRaises(ValueError):
             resolve_stream("https://evil.example/audio")

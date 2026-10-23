@@ -138,6 +138,7 @@
       <form id="controls" class="bar">
         <select id="fonte">
           <option value="bandnews_sp">BandNews FM SP</option>
+          <option value="cbn_sp">CBN São Paulo</option>
           <option value="custom">Outro link de rádio</option>
         </select>
         <select id="gravar">
@@ -252,14 +253,17 @@
 
     const fonte = document.querySelector("#fonte");
     const urlInput = document.querySelector("#url");
-    const bandnews = "https://playerservices.streamtheworld.com/api/livestream-redirect/BANDNEWSFM_SPAAC.m3u8?dist=bandsite";
+    const presets = {
+      bandnews_sp: "https://playerservices.streamtheworld.com/api/livestream-redirect/BANDNEWSFM_SPAAC.m3u8?dist=bandsite",
+      cbn_sp: "https://playerservices.streamtheworld.com/api/livestream-redirect/CBN_SPAAC.m3u8"
+    };
     fonte.addEventListener("change", () => {
-      if (fonte.value === "bandnews_sp") urlInput.value = bandnews;
+      if (presets[fonte.value]) urlInput.value = presets[fonte.value];
     });
     document.querySelector("#controls").addEventListener("submit", async (event) => {
       event.preventDefault();
       try {
-        const stream = fonte.value === "bandnews_sp" ? bandnews : urlInput.value;
+        const stream = presets[fonte.value] || urlInput.value;
         await api("/api/iniciar", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -517,8 +521,9 @@
 
     function render(state) {
       if (state.youtube_url) urlInput.value = state.youtube_url;
-      else if (!urlInput.value) urlInput.value = bandnews;
-      fonte.value = (urlInput.value || "").includes("BANDNEWSFM") ? "bandnews_sp" : "custom";
+      else if (!urlInput.value) urlInput.value = presets.bandnews_sp;
+      const current = urlInput.value || "";
+      fonte.value = current.includes("BANDNEWSFM") ? "bandnews_sp" : current.includes("CBN_SP") ? "cbn_sp" : "custom";
       const archive = state.archive;
       const saved = document.querySelector("#saved");
       if (archive) {

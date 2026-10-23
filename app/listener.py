@@ -28,6 +28,10 @@ PRESETS = {
         "https://playerservices.streamtheworld.com/api/livestream-redirect/"
         "BANDNEWSFM_SPAAC.m3u8?dist=bandsite"
     ),
+    "cbn_sp": (
+        "https://playerservices.streamtheworld.com/api/livestream-redirect/"
+        "CBN_SPAAC.m3u8"
+    ),
 }
 NOISE = (
     "obrigado por assistir",

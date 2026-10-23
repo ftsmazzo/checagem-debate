@@ -264,6 +264,7 @@ def estado(request: Request) -> dict:
         },
         "presets": {
             "bandnews_sp": PRESETS["bandnews_sp"],
+            "cbn_sp": PRESETS["cbn_sp"],
         },
         "segments": [
             {
