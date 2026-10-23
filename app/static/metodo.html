@@ -10,7 +10,8 @@
     main { max-width: 70ch; padding: 28px 40px 72px; }
     h1 { font-family: "Archivo Black", sans-serif; font-size: clamp(2.2rem, 5vw, 3.2rem); line-height: 1; letter-spacing: -0.03em; margin: 12px 0 18px; }
     h2 { font-family: "Archivo Black", sans-serif; font-size: 1.15rem; letter-spacing: 0.03em; text-transform: uppercase; margin: 2.2rem 0 0.6rem; }
-    p, li { max-width: 70ch; }
+    .scale { list-style: none; padding: 0; display: grid; gap: 14px; }
+    .scale li { display: flex; align-items: center; gap: 14px; }
     @media (max-width: 720px) { main { padding-left: 16px; padding-right: 16px; } }
   </style>
 </head>
@@ -28,17 +29,18 @@
   <main>
     <h1>Método</h1>
     <p>O Mentirômetro acompanha a fala enquanto ela está no ar. Cada checagem mostra o carimbo, o contexto e a fonte. Não há nota de quem ganhou o debate.</p>
-    <h2>Carimbo fechado</h2>
-    <p>Só permanece com pelo menos uma página https.</p>
-    <ul>
-      <li>Sustentado: a fonte apoia o núcleo da frase no recorte certo.</li>
-      <li>Sustentado com ressalva: o núcleo se sustenta, com limite de período, lugar ou definição.</li>
-      <li>Não é bem assim: há um fato, e também um salto que a fonte não dá.</li>
-      <li>Exagerado: a direção pode estar certa, mas o número, o prazo ou o recorte está maior.</li>
-      <li>Distorcido: a fonte existe, mas a frase troca o sentido dela.</li>
-      <li>Contradito: a fonte mostra que o núcleo não se sustenta.</li>
-      <li>Sem prova: a fonte mostra que não há prova pública do que foi dito.</li>
+    <h2>Os carimbos</h2>
+    <p>Só fica fechado com pelo menos uma página https. O carimbo diz o que foi dito, não quem é a pessoa.</p>
+    <ul class="scale">
+      <li><span class="stamp sustentado">Verdadeiro</span> correto e comprovado</li>
+      <li><span class="stamp sustentado_ressalva">Verdadeiro, mas...</span> certo, mas falta contexto</li>
+      <li><span class="stamp nao_e_bem_assim">Não é bem assim</span> mistura certo e errado</li>
+      <li><span class="stamp exagerado">Exagerado</span> direção certa, tamanho inflado</li>
+      <li><span class="stamp distorcido">Distorcido</span> dado real, conclusão enganosa</li>
+      <li><span class="stamp contradito">Falso</span> comprovadamente incorreto</li>
+      <li><span class="stamp sem_prova">Sem provas</span> não há dado público que comprove</li>
     </ul>
+    <p>É “falso”, não “mentira”: avaliamos o que foi dito, nunca a intenção.</p>
     <h2>Em aberto</h2>
     <ul>
       <li>Sem prova pública, versões em disputa, indício, dados incompletos e áudio confuso.</li>

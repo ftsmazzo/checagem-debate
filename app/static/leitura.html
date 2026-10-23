@@ -188,9 +188,9 @@
   <script src="/static/card.js"></script>
   <script>
     const labels = {
-      sustentado: "Sustentado", sustentado_ressalva: "Sustentado com ressalva",
+      sustentado: "Verdadeiro", sustentado_ressalva: "Verdadeiro, mas...",
       nao_e_bem_assim: "Não é bem assim", exagerado: "Exagerado", distorcido: "Distorcido",
-      contradito: "Contradito", sem_prova: "Sem prova", sem_prova_publica: "Sem prova pública",
+      contradito: "Falso", sem_prova: "Sem provas", sem_prova_publica: "Sem prova pública",
       versoes_em_disputa: "Versões em disputa", indicio: "Indício", dados_incompletos: "Dados incompletos",
       audio_confuso: "Áudio confuso", sem_evidencia: "Sem fonte suficiente", inconclusivo: "Em aberto",
       promessa: "Promessa"
@@ -217,13 +217,6 @@
       select.value = current;
     }
 
-    function tone(status) {
-      if (status === "sustentado" || status === "sustentado_ressalva") return "ok";
-      if (status === "exagerado" || status === "nao_e_bem_assim" || status === "promessa") return "warn";
-      if (status === "contradito" || status === "distorcido" || status === "sem_prova" || status === "erro") return "bad";
-      return "open";
-    }
-
     function card(claim, live) {
       const sources = (claim.sources || []).map((source) =>
         `<li><span class="kind">"${escapeHtml(source.kind || "fonte")}"</span> <a href="${escapeHtml(source.url)}" target="_blank" rel="noopener">${escapeHtml(source.title || "página")}</a><br>${escapeHtml(source.excerpt || source.note || "")}</li>`
@@ -240,7 +233,7 @@
         ${tie}
         <${title} class="q">${escapeHtml(claim.normalized || claim.quote)}</${title}>
         <p class="who">${escapeHtml(whoLine)}</p>
-        <p class="stamp ${tone(claim.status)}">${escapeHtml(labels[claim.status] || claim.status)}</p>
+        <p class="stamp ${escapeHtml(claim.status)}">${escapeHtml(labels[claim.status] || claim.status)}</p>
         <p class="sum">${escapeHtml(claim.summary || "")}</p>
         ${claim.missing ? `<p class="miss">${escapeHtml(claim.missing)}</p>` : ""}
         ${sources ? `<ul>${sources}</ul>` : ""}

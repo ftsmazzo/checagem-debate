@@ -1,23 +1,23 @@
 const MentiroCard = (() => {
   const STAMP = {
-    sustentado: ["SUSTENTADO", "#0b6b3a", "#d9f3e4"],
-    sustentado_ressalva: ["COM RESSALVA", "#0b6b3a", "#d9f3e4"],
-    nao_e_bem_assim: ["NÃO É BEM ASSIM", "#8a4b08", "#ffe7c2"],
-    exagerado: ["EXAGERADO", "#8a4b08", "#ffe7c2"],
-    promessa: ["PROMESSA", "#8a4b08", "#ffe7c2"],
-    distorcido: ["DISTORCIDO", "#a4161a", "#ffd6d4"],
-    contradito: ["CONTRADITO", "#a4161a", "#ffd6d4"],
-    sem_prova: ["SEM PROVA", "#a4161a", "#ffd6d4"],
-    erro: ["ERRO", "#a4161a", "#ffd6d4"],
-    sem_prova_publica: ["SEM PROVA PÚBLICA", "#1d4e89", "#d9e6f5"],
-    versoes_em_disputa: ["EM DISPUTA", "#1d4e89", "#d9e6f5"],
-    indicio: ["INDÍCIO", "#1d4e89", "#d9e6f5"],
-    dados_incompletos: ["DADOS INCOMPLETOS", "#1d4e89", "#d9e6f5"],
-    audio_confuso: ["ÁUDIO CONFUSO", "#1d4e89", "#d9e6f5"],
-    sem_evidencia: ["SEM FONTE", "#1d4e89", "#d9e6f5"],
-    inconclusivo: ["EM ABERTO", "#1d4e89", "#d9e6f5"],
-    pendente: ["CHECANDO", "#1d4e89", "#d9e6f5"],
-    processando: ["CHECANDO", "#1d4e89", "#d9e6f5"],
+    sustentado: ["VERDADEIRO", "#2f7a3e"],
+    sustentado_ressalva: ["VERDADEIRO, MAS...", "#6d8f28"],
+    nao_e_bem_assim: ["NÃO É BEM ASSIM", "#a67c1a"],
+    exagerado: ["EXAGERADO", "#c56a2c"],
+    promessa: ["PROMESSA", "#c56a2c"],
+    distorcido: ["DISTORCIDO", "#c45c66"],
+    contradito: ["FALSO", "#c43838"],
+    sem_prova: ["SEM PROVAS", "#6f6f6f"],
+    erro: ["ERRO", "#c43838"],
+    sem_prova_publica: ["SEM PROVA PÚBLICA", "#5c6b7a"],
+    versoes_em_disputa: ["VERSÕES EM DISPUTA", "#5c6b7a"],
+    indicio: ["INDÍCIO", "#5c6b7a"],
+    dados_incompletos: ["DADOS INCOMPLETOS", "#5c6b7a"],
+    audio_confuso: ["ÁUDIO CONFUSO", "#5c6b7a"],
+    sem_evidencia: ["SEM FONTE", "#5c6b7a"],
+    inconclusivo: ["EM ABERTO", "#5c6b7a"],
+    pendente: ["CHECANDO", "#5c6b7a"],
+    processando: ["CHECANDO", "#5c6b7a"],
   };
   const WHO = { lula: "Lula", flavio: "Flávio", avulsa: "Checagem" };
 
@@ -38,6 +38,32 @@ const MentiroCard = (() => {
     return lines;
   }
 
+  function drawStamp(ctx, text, ink, x, y, maxW) {
+    ctx.save();
+    let size = 42;
+    ctx.font = `400 ${size}px 'Archivo Black', sans-serif`;
+    while (size > 26 && ctx.measureText(text).width > maxW - 56) {
+      size -= 2;
+      ctx.font = `400 ${size}px 'Archivo Black', sans-serif`;
+    }
+    const w = Math.min(ctx.measureText(text).width + 48, maxW);
+    const h = size + 34;
+    ctx.translate(x, y + h / 2);
+    ctx.rotate(-0.045);
+    ctx.translate(0, -h / 2);
+    ctx.strokeStyle = ink;
+    ctx.lineWidth = 6;
+    ctx.strokeRect(3, 3, w - 6, h - 6);
+    ctx.lineWidth = 2;
+    ctx.strokeRect(10, 10, w - 20, h - 20);
+    ctx.fillStyle = ink;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, w / 2, h / 2 + 1);
+    ctx.restore();
+    return h;
+  }
+
   async function faces() {
     if (document.fonts.check("16px 'Archivo Black'")) return;
     const black = new FontFace("Archivo Black", "url(/static/fonts/archivo-black.ttf)");
@@ -53,7 +79,7 @@ const MentiroCard = (() => {
     const W = 1080;
     const H = story ? 1920 : 1350;
     const pad = 88;
-    const [stamp, ink, wash] = STAMP[claim.status] || ["CHECAGEM", "#161616", "#f3f1ec"];
+    const [stamp, ink] = STAMP[claim.status] || ["CHECAGEM", "#161616"];
     const canvas = document.createElement("canvas");
     canvas.width = W;
     canvas.height = H;
@@ -82,14 +108,8 @@ const MentiroCard = (() => {
     });
 
     y += story ? 48 : 36;
-    ctx.font = "400 42px 'Archivo Black', sans-serif";
-    const stampW = Math.min(ctx.measureText(stamp).width + 48, W - pad * 2);
-    const stampH = 78;
-    ctx.fillStyle = wash;
-    ctx.fillRect(pad, y, stampW, stampH);
-    ctx.fillStyle = ink;
-    ctx.textBaseline = "middle";
-    ctx.fillText(stamp, pad + 24, y + stampH / 2 + 2);
+    const stampH = drawStamp(ctx, stamp, ink, pad, y, W - pad * 2);
+    ctx.textAlign = "left";
     ctx.textBaseline = "top";
 
     y += stampH + (story ? 48 : 36);

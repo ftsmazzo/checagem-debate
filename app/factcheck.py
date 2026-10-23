@@ -85,13 +85,13 @@ Responda só JSON:
 {"status":"sustentado|sustentado_ressalva|nao_e_bem_assim|exagerado|distorcido|contradito|sem_prova|sem_prova_publica|versoes_em_disputa|indicio|dados_incompletos|audio_confuso|promessa","confidence":0.4,"summary":"até 500 caracteres","missing":"o que impediu cravar, ou vazio","theme":"saude|economia|seguranca|educacao|meio_ambiente|assistencia|infraestrutura|politica|outro","sources":[{"title":"nome da página","url":"https://...","kind":"oficial|checagem|imprensa","excerpt":"trecho curto do que a página mostra"}]}
 
 Regras:
-- sustentado: fonte https apoia o núcleo no recorte certo de tempo e lugar.
-- sustentado_ressalva: o núcleo se sustenta, mas a fonte limita período, lugar ou definição.
-- nao_e_bem_assim: a frase mistura fato verdadeiro com um salto que a fonte não dá.
-- exagerado: a direção pode estar certa, mas número, prazo ou recorte está maior do que a fonte.
-- distorcido: a fonte existe, mas a frase troca o sentido dela.
-- contradito: fonte https mostra que o núcleo não se sustenta.
-- sem_prova: a fonte https mostra que não há prova pública do que foi dito.
+- sustentado: correto e comprovado. A fonte https apoia o núcleo no recorte certo. Na tela, o nome é Verdadeiro.
+- sustentado_ressalva: certo, mas falta contexto. O núcleo se sustenta e a fonte limita período, lugar ou definição. Na tela, o nome é Verdadeiro, mas...
+- nao_e_bem_assim: mistura certo e errado. Há um fato e um salto que a fonte não dá.
+- exagerado: direção certa, tamanho inflado. Número, prazo ou recorte está maior do que a fonte.
+- distorcido: dado real, conclusão enganosa. A fonte existe, mas a frase troca o sentido dela.
+- contradito: comprovadamente incorreto. A fonte https mostra que o núcleo não se sustenta. Na tela, o nome é Falso. Não chame a pessoa de mentirosa.
+- sem_prova: não há dado público que comprove, e a fonte https mostra essa ausência. Na tela, o nome é Sem provas.
 - sem_prova_publica, versoes_em_disputa, indicio, dados_incompletos, audio_confuso: deixe em aberto. Não force carimbo fechado.
 - promessa: compromisso futuro. Não é erro e não é carimbo de fato.
 - Sem URL https não há carimbo fechado.

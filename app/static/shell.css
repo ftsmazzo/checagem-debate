@@ -108,16 +108,39 @@ a { color: var(--ink); }
 .nav a:hover { background: var(--tie); color: #fff; border-color: var(--tie); }
 .stamp, .chip {
   display: inline-block;
-  padding: 4px 8px;
+  padding: 5px 10px;
+  border: 3px solid currentColor;
+  outline: 1px solid currentColor;
+  outline-offset: -6px;
+  background: transparent;
+  color: var(--ink);
   font-family: "Archivo Black", sans-serif;
   font-size: 0.78rem;
-  letter-spacing: 0.04em;
+  font-weight: 400;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+  line-height: 1.2;
+  transform: rotate(-2deg);
 }
-.ok, .sustentado, .sustentado_ressalva { background: var(--ok-bg); color: var(--ok); }
-.warn, .exagerado, .nao_e_bem_assim, .promessa { background: var(--warn-bg); color: var(--warn); }
-.bad, .contradito, .distorcido, .sem_prova, .erro { background: var(--bad-bg); color: var(--bad); }
-.open, .pendente, .processando, .sem_evidencia, .inconclusivo, .sem_prova_publica, .versoes_em_disputa, .indicio, .dados_incompletos, .audio_confuso { background: var(--open-bg); color: var(--open); }
+.stamp.sustentado, .chip.sustentado { color: #2f7a3e; }
+.stamp.sustentado_ressalva, .chip.sustentado_ressalva { color: #6d8f28; }
+.stamp.nao_e_bem_assim, .chip.nao_e_bem_assim { color: #a67c1a; }
+.stamp.exagerado, .chip.exagerado, .stamp.promessa, .chip.promessa { color: #c56a2c; }
+.stamp.distorcido, .chip.distorcido { color: #c45c66; }
+.stamp.contradito, .chip.contradito, .stamp.erro, .chip.erro { color: #c43838; }
+.stamp.sem_prova, .chip.sem_prova { color: #6f6f6f; }
+.stamp.pendente, .chip.pendente,
+.stamp.processando, .chip.processando,
+.stamp.sem_evidencia, .chip.sem_evidencia,
+.stamp.inconclusivo, .chip.inconclusivo,
+.stamp.sem_prova_publica, .chip.sem_prova_publica,
+.stamp.versoes_em_disputa, .chip.versoes_em_disputa,
+.stamp.indicio, .chip.indicio,
+.stamp.dados_incompletos, .chip.dados_incompletos,
+.stamp.audio_confuso, .chip.audio_confuso { color: #5c6b7a; }
 @media (max-width: 800px) {
   .top { padding: 14px 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stamp, .chip { transform: none; }
 }
