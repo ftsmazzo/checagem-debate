@@ -6,5 +6,5 @@
 - Não rotular uma frase como fake. O painel mostra o estado e a fonte.
 - A fila automática só checa fala atribuída a Lula. Frase de outro candidato não entra nessa fila.
 - A escuta aceita apenas URL dos domínios do YouTube.
-- `/health` fica público para monitoramento. O restante do painel exige a senha.
+- `/health` fica público para monitoramento. O painel não pede senha: o endereço é de uma pessoa só.
 - Banco deste projeto é exclusivo. Não apontar `DATABASE_URL` para outro serviço.

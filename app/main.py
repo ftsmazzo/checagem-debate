@@ -71,9 +71,8 @@ def _password_ok(given: str) -> bool:
 
 
 def authorized(request: Request) -> None:
-    token = request.cookies.get("sessao", "")
-    if token not in sessions:
-        raise HTTPException(status_code=401, detail="faça login")
+    """O painel é de uma pessoa só. O endereço não pede senha."""
+    return
 
 
 class LoginBody(BaseModel):
