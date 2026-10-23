@@ -34,7 +34,7 @@ Em aberto: adaptar a escuta a canais além da lista atual.
 
 ## Brand Commitments
 
-O nome do sistema é Mentirômetro. A marca ao lado é IEleitoral, com o logo em `app/static/logo-ie.png`. A voz nomeia o estado e a fonte. Não rotula a frase como fake. O visual do Fato Carimbado não é modelo para copiar. O visual atual do painel não é a identidade a estender.
+O nome do sistema é Mentirômetro. A marca ao lado é Inteligência Eleitoral, com o logo em `app/static/logo-ie.png`. A mesa é o preto desse logo, o coral #f15d5a e o verde #4ab848. O carimbo continua de contorno, com o nome público do estado. A voz nomeia o estado e a fonte. Não rotula a frase como fake. O visual do Fato Carimbado não é modelo para copiar.
 
 ## Evidence on Hand
 

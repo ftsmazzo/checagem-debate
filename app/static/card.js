@@ -1,23 +1,23 @@
 const MentiroCard = (() => {
   const STAMP = {
-    sustentado: ["VERDADEIRO", "#2f7a3e"],
-    sustentado_ressalva: ["VERDADEIRO, MAS...", "#6d8f28"],
-    nao_e_bem_assim: ["NÃO É BEM ASSIM", "#a67c1a"],
-    exagerado: ["EXAGERADO", "#c56a2c"],
-    promessa: ["PROMESSA", "#c56a2c"],
-    distorcido: ["DISTORCIDO", "#c45c66"],
-    contradito: ["FALSO", "#c43838"],
-    sem_prova: ["SEM PROVAS", "#6f6f6f"],
-    erro: ["ERRO", "#c43838"],
-    sem_prova_publica: ["SEM PROVA PÚBLICA", "#5c6b7a"],
-    versoes_em_disputa: ["VERSÕES EM DISPUTA", "#5c6b7a"],
-    indicio: ["INDÍCIO", "#5c6b7a"],
-    dados_incompletos: ["DADOS INCOMPLETOS", "#5c6b7a"],
-    audio_confuso: ["ÁUDIO CONFUSO", "#5c6b7a"],
-    sem_evidencia: ["SEM FONTE", "#5c6b7a"],
-    inconclusivo: ["EM ABERTO", "#5c6b7a"],
-    pendente: ["CHECANDO", "#5c6b7a"],
-    processando: ["CHECANDO", "#5c6b7a"],
+    sustentado: ["VERDADEIRO", "#3dce8f"],
+    sustentado_ressalva: ["VERDADEIRO, MAS...", "#b7d36a"],
+    nao_e_bem_assim: ["NÃO É BEM ASSIM", "#e2b34a"],
+    exagerado: ["EXAGERADO", "#f0a05a"],
+    promessa: ["PROMESSA", "#f0a05a"],
+    distorcido: ["DISTORCIDO", "#f3a0a8"],
+    contradito: ["FALSO", "#ff6b6b"],
+    sem_prova: ["SEM PROVAS", "#c8c2ba"],
+    erro: ["ERRO", "#ff6b6b"],
+    sem_prova_publica: ["SEM PROVA PÚBLICA", "#a9bdd4"],
+    versoes_em_disputa: ["VERSÕES EM DISPUTA", "#a9bdd4"],
+    indicio: ["INDÍCIO", "#a9bdd4"],
+    dados_incompletos: ["DADOS INCOMPLETOS", "#a9bdd4"],
+    audio_confuso: ["ÁUDIO CONFUSO", "#a9bdd4"],
+    sem_evidencia: ["SEM FONTE", "#a9bdd4"],
+    inconclusivo: ["EM ABERTO", "#a9bdd4"],
+    pendente: ["CHECANDO", "#a9bdd4"],
+    processando: ["CHECANDO", "#a9bdd4"],
   };
   const WHO = { lula: "Lula", flavio: "Flávio", avulsa: "Checagem" };
 
@@ -79,29 +79,40 @@ const MentiroCard = (() => {
     const W = 1080;
     const H = story ? 1920 : 1350;
     const pad = 88;
-    const [stamp, ink] = STAMP[claim.status] || ["CHECAGEM", "#161616"];
+    const [stamp, ink] = STAMP[claim.status] || ["CHECAGEM", "#f6f3ee"];
     const canvas = document.createElement("canvas");
     canvas.width = W;
     canvas.height = H;
     const ctx = canvas.getContext("2d");
-    ctx.fillStyle = "#f3f1ec";
+    ctx.fillStyle = "#0c0c0c";
     ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = ink;
-    ctx.fillRect(0, 0, 36, H);
+    ctx.strokeStyle = "#f15d5a";
+    ctx.lineWidth = 12;
+    ctx.strokeRect(18, 18, W - 36, H - 36);
 
-    ctx.fillStyle = "#161616";
-    ctx.font = "400 34px 'Archivo Black', sans-serif";
+    const logo = new Image();
+    logo.src = "/static/logo-ie-mark.png";
+    await logo.decode();
+    const logoH = story ? 92 : 78;
+    const logoW = logoH * (logo.width / logo.height);
+    let top = story ? 120 : 72;
+    ctx.drawImage(logo, pad, top, logoW, logoH);
+    top += logoH + 28;
+
+    ctx.fillStyle = "#f15d5a";
+    ctx.font = "400 28px 'Archivo Black', sans-serif";
     ctx.textBaseline = "top";
-    ctx.fillText("MENTIRÔMETRO", pad, story ? 120 : 78);
+    ctx.fillText("MENTIRÔMETRO", pad, top);
 
     const who = WHO[claim.speaker] || "Checagem";
+    ctx.fillStyle = "#f6f3ee";
     ctx.font = "500 32px Literata, serif";
-    ctx.fillText(who, pad, story ? 180 : 132);
+    ctx.fillText(who, pad, top + 48);
 
     const quote = `"${claim.normalized || claim.quote || ""}"`;
     ctx.font = "400 64px 'Archivo Black', sans-serif";
     const quoteLines = wrap(ctx, quote, W - pad * 2).slice(0, story ? 8 : 5);
-    let y = story ? 280 : 220;
+    let y = top + (story ? 140 : 120);
     quoteLines.forEach((line) => {
       ctx.fillText(line, pad, y);
       y += 74;
@@ -113,7 +124,7 @@ const MentiroCard = (() => {
     ctx.textBaseline = "top";
 
     y += stampH + (story ? 48 : 36);
-    ctx.fillStyle = "#161616";
+    ctx.fillStyle = "#f6f3ee";
     ctx.font = "500 36px Literata, serif";
     wrap(ctx, claim.summary || "", W - pad * 2).slice(0, story ? 7 : 4)
       .forEach((line) => {
@@ -123,8 +134,9 @@ const MentiroCard = (() => {
 
     const source = (claim.sources || []).find((item) => item && item.url);
     const foot = H - (story ? 220 : 150);
-    ctx.fillStyle = "#161616";
+    ctx.fillStyle = "#f15d5a";
     ctx.fillRect(pad, foot - 24, W - pad * 2, 3);
+    ctx.fillStyle = "#f6f3ee";
     ctx.font = "700 28px Literata, serif";
     const kind = source && source.kind ? `${source.kind} · ` : "";
     const sourceText = source ? `${kind}${source.title || source.url}` : "Sem página https";

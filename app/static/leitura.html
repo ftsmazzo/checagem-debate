@@ -3,8 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0c0c0c">
   <title>Leitura · Mentirômetro</title>
-  <link rel="icon" type="image/png" href="/static/logo-ie.png">
+  <link rel="icon" type="image/png" href="/static/logo-ie-icon.png">
   <link rel="stylesheet" href="/static/shell.css">
   <style>
     @font-face {
@@ -25,32 +26,7 @@
       font-weight: 700;
       font-display: swap;
     }
-    :root {
-      --cotton: #f4f4f2;
-      --ink: #111111;
-      --tie: #ff5a1f;
-      --plate: #ffffff;
-    }
-    * { box-sizing: border-box; }
     html { scroll-behavior: smooth; }
-    body {
-      margin: 0;
-      background: var(--cotton);
-      color: var(--ink);
-      font-family: Literata, Georgia, serif;
-      font-weight: 500;
-      font-size: 1.05rem;
-      line-height: 1.55;
-    }
-    ::selection { background: var(--tie); color: var(--ink); }
-    :focus-visible { outline: 3px solid var(--tie); outline-offset: 3px; }
-    ::-webkit-scrollbar { width: 12px; height: 12px; }
-    ::-webkit-scrollbar-thumb { background: var(--ink); }
-    ::-webkit-scrollbar-track { background: var(--cotton); }
-    .stripe {
-      height: 72px;
-      background: repeating-linear-gradient(45deg, #111 0 16px, #ff5a1f 16px 32px);
-    }
     .bar {
       display: flex;
       flex-wrap: wrap;
@@ -62,15 +38,15 @@
     select, button, textarea {
       font-family: "Archivo Black", sans-serif;
       letter-spacing: 0.04em;
-      border: 2px solid var(--ink);
+      border: 1px solid var(--ie-line);
       border-radius: 0;
       background: var(--plate);
-      color: var(--ink);
+      color: var(--paper);
       min-height: 48px;
     }
     select, button { padding: 0 14px; cursor: pointer; }
-    button { background: var(--ink); color: var(--cotton); }
-    button:hover { background: var(--tie); color: #fff; }
+    button { background: var(--coral); color: var(--night); border-color: var(--coral); }
+    button:hover { background: var(--ie-coral-deep); color: var(--night); border-color: var(--ie-coral-deep); }
     main { padding: 8px 40px 64px; }
     .fala { max-width: 74ch; margin: 36px 0 0; }
     .fala + .fala { margin-top: 56px; }
@@ -89,19 +65,14 @@
       display: inline-block;
       margin: 0 0 16px;
       padding: 6px 10px;
-      background: var(--tie);
-      color: var(--ink);
+      background: transparent;
+      color: var(--mark);
+      border: 3px solid var(--mark);
+      outline: 1px solid var(--mark);
+      outline-offset: -6px;
       font-family: "Archivo Black", sans-serif;
-      letter-spacing: 0.06em;
-      transform-origin: top center;
-      animation: swing 0.7s cubic-bezier(0.16, 1, 0.3, 1) 1;
-    }
-    .tie::before { content: '"'; }
-    .tie::after { content: '"'; }
-    @keyframes swing {
-      0% { transform: rotate(0deg); }
-      35% { transform: rotate(-8deg); }
-      100% { transform: rotate(0deg); }
+      letter-spacing: 0.08em;
+      transform: rotate(-2deg);
     }
     .who, .stamp, .kind {
       font-family: "Archivo Black", sans-serif;
@@ -111,18 +82,18 @@
     .who { margin: 0 0 8px; }
     .stamp { margin: 18px 0 8px; font-size: 0.95rem; padding: 6px 10px; }
     .sum, .miss { margin: 0 0 12px; max-width: 70ch; }
-    .miss { color: #3a3a3a; }
+    .miss { color: var(--ie-muted); }
     ul { margin: 12px 0 0; padding: 0; list-style: none; }
     li { margin: 0 0 14px; max-width: 70ch; }
-    a { color: var(--ink); text-underline-offset: 4px; }
-    a:hover { background: var(--tie); }
+    main a { color: var(--paper); text-underline-offset: 4px; }
+    main a:hover { background: var(--coral); color: var(--night); }
     .fix { margin: 16px 0; max-width: 70ch; }
     .fix strong {
       display: inline-block;
       margin-right: 8px;
       padding: 2px 6px;
-      background: var(--ink);
-      color: var(--cotton);
+      background: var(--coral);
+      color: var(--night);
       font-family: "Archivo Black", sans-serif;
       font-weight: 400;
     }
@@ -141,23 +112,23 @@
       display: inline-block;
       margin: 12px 0 0;
       padding: 8px 12px;
-      background: var(--tie);
+      background: var(--coral);
+      color: var(--night);
       font-family: "Archivo Black", sans-serif;
     }
     .empty { font-family: "Archivo Black", sans-serif; font-size: clamp(2rem, 4vw, 3rem); max-width: 16ch; line-height: 0.98; }
     @media (max-width: 720px) {
-      .stripe { height: 48px; }
       .bar, main { padding-left: 16px; padding-right: 16px; }
     }
     @media (prefers-reduced-motion: reduce) {
       html { scroll-behavior: auto; }
-      .tie { animation: none; }
+      .tie { transform: none; }
     }
   </style>
 </head>
 <body>
   <header class="top">
-    <a class="brand" href="/"><img src="/static/logo-ie.png" alt="" width="36" height="36"><strong>Mentirômetro</strong></a>
+    <a class="brand" href="/"><img src="/static/logo-ie-mark.png" alt="Inteligência Eleitoral"><strong>Mentirômetro</strong></a>
     <nav class="nav" aria-label="Seções">
       <a href="/">Ao vivo</a>
       <a class="here" href="/leitura">Leitura</a>

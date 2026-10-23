@@ -3,26 +3,28 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0c0c0c">
   <title>Mentirômetro · IEleitoral</title>
-  <link rel="icon" type="image/png" href="/static/logo-ie.png">
+  <link rel="icon" type="image/png" href="/static/logo-ie-icon.png">
   <link rel="stylesheet" href="/static/shell.css">
   <style>
     main { width: min(1100px, calc(100% - 32px)); margin: 0 auto; padding: 20px 0 48px; }
     .lead { max-width: 62ch; }
-    .login, .card, .phrase { background: var(--plate); border: 2px solid var(--ink); padding: 16px; }
+    .login, .card, .phrase { background: var(--plate); border: 1px solid var(--ie-line); padding: 16px; }
     .login { display: flex; gap: 8px; max-width: 420px; }
-    input, select, button { font: inherit; border: 2px solid var(--ink); background: #fff; color: var(--ink); padding: 10px 12px; }
-    button { background: var(--ink); color: var(--cotton); font-family: "Archivo Black", sans-serif; cursor: pointer; }
+    input, select, button { font: inherit; border: 1px solid var(--ie-line); background: var(--ie-bg-soft); color: var(--paper); caret-color: var(--coral); padding: 10px 12px; }
+    button { background: var(--coral); color: var(--night); border-color: var(--coral); font-family: "Archivo Black", sans-serif; cursor: pointer; }
+    button:hover { background: var(--ie-coral-deep); }
     .bar { display: flex; gap: 8px; align-items: center; margin: 12px 0 18px; flex-wrap: wrap; }
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .pct { font-family: "Archivo Black", sans-serif; font-size: 2.4rem; margin: 8px 0; }
-    .meta { color: #3f3f3f; font-size: 0.9rem; }
+    .meta { color: var(--ie-muted); font-size: 0.9rem; }
     .counts { display: flex; gap: 10px; flex-wrap: wrap; }
     .phrase { margin-top: 10px; }
     .phrase strong { display: block; margin: 8px 0; }
     a.back {
       display: inline-flex; align-items: center; min-height: 40px; padding: 0 12px;
-      border: 2px solid var(--ink); text-decoration: none;
+      border: 1px solid var(--ie-line); color: var(--paper); text-decoration: none;
       font-family: "Archivo Black", sans-serif; font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase;
     }
     @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
@@ -30,7 +32,7 @@
 </head>
 <body>
   <header class="top">
-    <a class="brand" href="/"><img src="/static/logo-ie.png" alt="" width="36" height="36"><strong>Mentirômetro</strong></a>
+    <a class="brand" href="/"><img src="/static/logo-ie-mark.png" alt="Inteligência Eleitoral"><strong>Mentirômetro</strong></a>
     <nav class="nav" aria-label="Seções">
       <a href="/">Ao vivo</a>
       <a href="/leitura">Leitura</a>

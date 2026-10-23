@@ -1,0 +1,303 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-23T23:03:00-03:00",
+  "title": "Design System: Mentirômetro",
+  "extensions": {
+    "colorMeta": {
+      "night": {
+        "role": "neutral",
+        "displayName": "Noite",
+        "canonical": "#0c0c0c",
+        "tonalRamp": ["#0b0b0b", "#242424", "#424242", "#636363", "#868686", "#ababab", "#cecece", "#eeeeee"]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Papel",
+        "canonical": "#f6f3ee",
+        "tonalRamp": ["#0d0b08", "#262420", "#44423e", "#65635f", "#888681", "#adaaa6", "#d0cdc8", "#f1eee9"]
+      },
+      "coral": {
+        "role": "primary",
+        "displayName": "Coral do logo",
+        "canonical": "#f15d5a",
+        "tonalRamp": ["#3b0000", "#610000", "#8b0000", "#b41f28", "#df4c4b", "#ff746f", "#ff9891", "#ffb9b0"]
+      },
+      "mark": {
+        "role": "secondary",
+        "displayName": "Verde do monograma",
+        "canonical": "#4ab848",
+        "tonalRamp": ["#001700", "#003500", "#005700", "#007b00", "#2ea02e", "#5ac757", "#7eeb7a", "#a0ff9a"]
+      },
+      "plate": {
+        "role": "neutral",
+        "displayName": "Placa",
+        "canonical": "#161616",
+        "tonalRamp": ["#0b0b0b", "#242424", "#424242", "#636363", "#868686", "#ababab", "#cecece", "#eeeeee"]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Linha",
+        "canonical": "#3a3532",
+        "tonalRamp": ["#0e0a08", "#282320", "#46413e", "#67625f", "#8b8581", "#b0a9a6", "#d3ccc8", "#f4ede9"]
+      },
+      "bg-soft": {
+        "role": "neutral",
+        "displayName": "Campo",
+        "canonical": "#121212",
+        "tonalRamp": ["#0b0b0b", "#242424", "#424242", "#636363", "#868686", "#ababab", "#cecece", "#eeeeee"]
+      },
+      "ink-soft": {
+        "role": "neutral",
+        "displayName": "Texto suave",
+        "canonical": "#ddd6cc",
+        "tonalRamp": ["#0f0a05", "#28231c", "#474139", "#68625a", "#8c857c", "#b0aaa0", "#d4cdc3", "#f5ede3"]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Meta",
+        "canonical": "#b7b0a6",
+        "tonalRamp": ["#0f0a05", "#28231b", "#474139", "#696259", "#8c857c", "#b1aaa0", "#d4cdc2", "#f5ede3"]
+      },
+      "coral-deep": {
+        "role": "primary",
+        "displayName": "Coral do hover",
+        "canonical": "#ff8a86",
+        "tonalRamp": ["#320000", "#560000", "#7d0e1a", "#a5393b", "#ce5e5c", "#f88480", "#ffa7a2", "#ffc7c1"]
+      },
+      "coral-soft": {
+        "role": "primary",
+        "displayName": "Coral lavado",
+        "canonical": "rgba(241, 93, 90, 0.16)",
+        "tonalRamp": ["#180505", "#341c1c", "#553a39", "#785b5a", "#9c7d7c", "#c2a2a0", "#e6c5c3", "#ffe5e3"]
+      },
+      "accent-soft": {
+        "role": "secondary",
+        "displayName": "Verde lavado",
+        "canonical": "rgba(74, 184, 72, 0.16)",
+        "tonalRamp": ["#020f02", "#172917", "#354835", "#566a55", "#788d77", "#9cb29b", "#bfd5bd", "#dff6de"]
+      },
+      "success": {
+        "role": "state",
+        "displayName": "Sustentado",
+        "canonical": "#3dce8f",
+        "tonalRamp": ["#001800", "#003602", "#005823", "#007c43", "#00a165", "#34c789", "#62ecab", "#86ffcb"]
+      },
+      "ressalva": {
+        "role": "state",
+        "displayName": "Ressalva",
+        "canonical": "#b7d36a",
+        "tonalRamp": ["#050f00", "#1b2b00", "#384b00", "#576e00", "#799223", "#9db84f", "#bfdc73", "#e0fd93"]
+      },
+      "warn": {
+        "role": "state",
+        "displayName": "Não é bem assim",
+        "canonical": "#e2b34a",
+        "tonalRamp": ["#220000", "#401700", "#623800", "#865a00", "#ab7e00", "#d1a337", "#f6c65f", "#ffe781"]
+      },
+      "exagerado": {
+        "role": "state",
+        "displayName": "Exagerado",
+        "canonical": "#f0a05a",
+        "tonalRamp": ["#2b0000", "#4c0300", "#702a00", "#964d00", "#bd7126", "#e59650", "#ffb973", "#ffda93"]
+      },
+      "distorcido": {
+        "role": "state",
+        "displayName": "Distorcido",
+        "canonical": "#f3a0a8",
+        "tonalRamp": ["#280002", "#480316", "#6d2733", "#934953", "#ba6c75", "#e29099", "#ffb3bb", "#ffd3db"]
+      },
+      "danger": {
+        "role": "state",
+        "displayName": "Contradito",
+        "canonical": "#ff6b6b",
+        "tonalRamp": ["#3b0000", "#610000", "#8a0008", "#b4202e", "#de4d50", "#ff7474", "#ff9895", "#ffb9b5"]
+      },
+      "sem-prova": {
+        "role": "state",
+        "displayName": "Sem prova",
+        "canonical": "#c8c2ba",
+        "tonalRamp": ["#0e0a06", "#28231d", "#46423b", "#68625b", "#8b857e", "#b0aaa2", "#d3cdc5", "#f4ede5"]
+      },
+      "aberto": {
+        "role": "state",
+        "displayName": "Em aberto",
+        "canonical": "#a9bdd4",
+        "tonalRamp": ["#010b1b", "#152537", "#334457", "#53657a", "#75889e", "#99adc4", "#bcd0e7", "#dcf1ff"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Primeira fala da leitura."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Falas seguintes da leitura."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Título de seção no ao vivo, em maiúsculas."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Texto corrido e resumo."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Navegação e rótulos curtos em maiúsculas."
+      }
+    },
+    "shadows": [
+      {
+        "name": "none",
+        "value": "none",
+        "purpose": "Valor de --ie-shadow. Placa, barra e compositor do ao vivo também declaram box-shadow none."
+      }
+    ],
+    "motion": [
+      {
+        "name": "stamp-tilt",
+        "value": "rotate(-2deg)",
+        "purpose": "Inclinação do carimbo, do chip e do aviso AO VIVO. prefers-reduced-motion zera o transform."
+      },
+      {
+        "name": "card-stamp-tilt",
+        "value": "rotate(-0.045rad)",
+        "purpose": "Inclinação do carimbo desenhado no canvas. O PNG não reage a reduced motion."
+      },
+      {
+        "name": "hover",
+        "value": "instant",
+        "purpose": "Troca de cor do botão e da navegação sem duration nem easing."
+      }
+    ],
+    "breakpoints": [
+      { "name": "nav-grid", "value": "560px" },
+      { "name": "reading", "value": "720px" },
+      { "name": "header", "value": "800px" },
+      { "name": "live-grid", "value": "860px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ação principal. Coral, texto noite, Archivo Black em caixa de frase.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">Ouvir a live</button>",
+      "css": ".ds-btn-primary { background: var(--coral); color: var(--night); padding: 10px 14px; font-family: \"Archivo Black\", sans-serif; font-weight: 400; font-size: 1.05rem; letter-spacing: 0.03em; border: 1px solid var(--coral); border-radius: 0; cursor: pointer; } .ds-btn-primary:hover { background: var(--ie-coral-deep); border-color: var(--ie-coral-deep); color: var(--night); } .ds-btn-primary:focus-visible { outline: 3px solid var(--mark); outline-offset: 2px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Ação secundária do ao vivo. Fundo transparente, texto suave, hover em verde lavado.",
+      "html": "<button class=\"ds-btn-ghost\" type=\"button\">Parar</button>",
+      "css": ".ds-btn-ghost { background: transparent; color: var(--ie-ink-soft); padding: 10px 14px; font-family: \"Archivo Black\", sans-serif; font-weight: 400; font-size: 1.05rem; letter-spacing: 0.03em; border: 1px solid var(--ie-line); border-radius: 0; cursor: pointer; } .ds-btn-ghost:hover { background: var(--ie-accent-soft); color: var(--ie-ink); } .ds-btn-ghost:focus-visible { outline: 3px solid var(--mark); outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Campo do ao vivo. Literata, fundo campo, caret coral.",
+      "html": "<input class=\"ds-field\" type=\"text\" placeholder=\"Cole a frase\">",
+      "css": ".ds-field { background: var(--ie-bg-soft); color: var(--paper); caret-color: var(--coral); padding: 10px 12px; font-family: Literata, Georgia, serif; font-size: 1.05rem; line-height: 1.55; border: 1px solid var(--ie-line); border-radius: 0; min-width: 16rem; } .ds-field::placeholder { color: var(--ie-muted); opacity: 1; } .ds-field:focus-visible { outline: 3px solid var(--mark); outline-offset: 2px; }"
+    },
+    {
+      "name": "Navigation",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "Cabeçalho noturno. A seção atual fica coral; o hover dos outros itens fica verde.",
+      "html": "<header class=\"ds-top\"><a class=\"ds-brand\" href=\"/\"><strong>Mentirômetro</strong></a><nav class=\"ds-nav\" aria-label=\"Seções\"><a class=\"ds-nav-link ds-nav-here\" href=\"/\">Ao vivo</a><a class=\"ds-nav-link\" href=\"/leitura\">Leitura</a><a class=\"ds-nav-link\" href=\"/metodo\">Método</a></nav></header>",
+      "css": ".ds-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; padding: 14px 28px; background: var(--night); border-bottom: 2px solid var(--coral); } .ds-brand { color: var(--coral); text-decoration: none; } .ds-brand strong { font-family: \"Archivo Black\", sans-serif; font-weight: 400; font-size: 1.05rem; letter-spacing: -0.03em; color: var(--paper); } .ds-nav { display: flex; flex-wrap: wrap; gap: 8px; } .ds-nav-link { display: inline-flex; align-items: center; min-height: 40px; padding: 0 12px; border: 1px solid var(--line); border-radius: 0; background: transparent; color: var(--paper); font-family: \"Archivo Black\", sans-serif; font-weight: 400; font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase; text-decoration: none; } .ds-nav-link:hover { border-color: var(--mark); color: var(--mark); background: transparent; } .ds-nav-here, .ds-nav-here:hover { background: var(--coral); color: var(--night); border-color: var(--coral); } .ds-nav-link:focus-visible { outline: 3px solid var(--mark); outline-offset: 2px; }"
+    },
+    {
+      "name": "Stamp",
+      "kind": "chip",
+      "refersTo": "stamp",
+      "description": "Carimbo vazado na tinta do estado. AO VIVO repete a construção em verde.",
+      "html": "<p><span class=\"ds-stamp ds-stamp-sustentado\">Verdadeiro</span> <span class=\"ds-stamp ds-stamp-exagerado\">Exagerado</span> <span class=\"ds-stamp ds-stamp-contradito\">Falso</span> <span class=\"ds-stamp ds-stamp-aberto\">Em aberto</span> <span class=\"ds-tie\">AO VIVO</span></p>",
+      "css": ".ds-stamp, .ds-tie { display: inline-block; padding: 5px 10px; border: 3px solid currentColor; outline: 1px solid currentColor; outline-offset: -6px; background: transparent; color: var(--paper); font-family: \"Archivo Black\", sans-serif; font-size: 0.78rem; font-weight: 400; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1.2; border-radius: 0; transform: rotate(-2deg); } .ds-tie { color: var(--mark); letter-spacing: 0.08em; padding: 6px 10px; } .ds-stamp-sustentado { color: #3dce8f; } .ds-stamp-ressalva { color: #b7d36a; } .ds-stamp-warn { color: #e2b34a; } .ds-stamp-exagerado { color: #f0a05a; } .ds-stamp-distorcido { color: #f3a0a8; } .ds-stamp-contradito { color: #ff6b6b; } .ds-stamp-sem-prova { color: #c8c2ba; } .ds-stamp-aberto { color: #a9bdd4; } @media (prefers-reduced-motion: reduce) { .ds-stamp, .ds-tie { transform: none; } }"
+    },
+    {
+      "name": "Plate",
+      "kind": "card",
+      "refersTo": "plate",
+      "description": "Bloco de trabalho. Placa, linha de 1px, canto reto, sem sombra.",
+      "html": "<article class=\"ds-plate\"><h2 class=\"ds-plate-title\">Transcrição</h2><p class=\"ds-plate-body\">A fala entra aqui, com a medida de leitura.</p></article>",
+      "css": ".ds-plate { background: var(--plate); color: var(--paper); border: 1px solid var(--ie-line); border-radius: 0; box-shadow: none; padding: 16px 18px; max-width: 68ch; } .ds-plate-title { margin: 0 0 12px; font-family: \"Archivo Black\", sans-serif; font-size: 1rem; font-weight: 400; letter-spacing: 0.04em; text-transform: uppercase; } .ds-plate-body { margin: 0; font-family: Literata, Georgia, serif; font-size: 1.05rem; line-height: 1.55; }"
+    },
+    {
+      "name": "Share Card",
+      "kind": "custom",
+      "refersTo": "share-card",
+      "description": "Feed 1080×1350 e stories 1080×1920. Noite, traço coral de 12px insetado 18px nos quatro lados, marca IE, carimbo vazado e resumo em Literata. O espécime abaixo traduz o feed para CSS; o arquivo desenha a logo em logo-ie-mark.png.",
+      "html": "<article class=\"ds-share\"><div class=\"ds-share-frame\"><p class=\"ds-share-brand\">MENTIRÔMETRO</p><p class=\"ds-share-who\">Lula</p><p class=\"ds-share-quote\">“A fala citada vai aqui, em Archivo Black.”</p><p class=\"ds-share-stamp\">VERDADEIRO</p><p class=\"ds-share-sum\">O resumo da checagem fica em Literata, com a fonte logo abaixo.</p><div class=\"ds-share-rule\"></div><p class=\"ds-share-source\">imprensa · Título da fonte</p></div></article>",
+      "css": ".ds-share { width: 1080px; min-height: 1350px; background: #0c0c0c; padding: 12px; } .ds-share-frame { border: 12px solid #f15d5a; border-radius: 0; min-height: 1326px; padding: 64px 64px 120px; } .ds-share-brand { margin: 0; color: #f15d5a; font-family: \"Archivo Black\", sans-serif; font-weight: 400; font-size: 28px; letter-spacing: 0; } .ds-share-who { margin: 20px 0 0; color: #f6f3ee; font-family: Literata, Georgia, serif; font-weight: 500; font-size: 32px; } .ds-share-quote { margin: 48px 0 0; color: #f6f3ee; font-family: \"Archivo Black\", sans-serif; font-weight: 400; font-size: 64px; line-height: 74px; letter-spacing: 0; } .ds-share-stamp { display: inline-block; margin: 36px 0 0; padding: 16px 24px; color: #3dce8f; background: transparent; border: 6px solid currentColor; outline: 2px solid currentColor; outline-offset: -10px; border-radius: 0; font-family: \"Archivo Black\", sans-serif; font-weight: 400; font-size: 42px; letter-spacing: 0; transform: rotate(-0.045rad); } .ds-share-sum { margin: 48px 0 0; color: #f6f3ee; font-family: Literata, Georgia, serif; font-weight: 500; font-size: 36px; line-height: 48px; } .ds-share-rule { height: 3px; margin-top: 48px; background: #f15d5a; } .ds-share-source { margin: 24px 0 0; color: #f6f3ee; font-family: Literata, Georgia, serif; font-weight: 700; font-size: 28px; line-height: 36px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "A mesa do debate",
+    "overview": "A checagem acontece na noite da Inteligência Eleitoral. O fundo é o preto do logo, a placa sobe um degrau, o texto é papel quente. O coral do logo marca a seção atual, o botão principal e a moldura do card. O verde do monograma marca o foco e o que está entrando agora.\n\nA densidade é de leitura. A fala citada entra em Archivo Black, o carimbo é contorno duplo levemente inclinado, os cantos são retos. O resumo e o texto corrido ficam em Literata. A profundidade vem do degrau entre noite, placa e campo. O quadro claro e o chip preenchido ficam de fora desta mesa.",
+    "keyCharacteristics": [
+      "Noite, placa e papel quente, com a linha morna entre os blocos",
+      "Coral na seção atual, no botão principal e na moldura do card",
+      "Verde no foco, no hover da navegação e em “entrando agora”",
+      "Carimbo vazado, inclinado, na tinta do estado",
+      "Archivo Black no nome, no carimbo e na fala citada; Literata no texto e no resumo",
+      "Cantos retos e sombra nenhuma"
+    ],
+    "rules": [
+      {
+        "name": "The Coral Ativo Rule",
+        "body": "O coral preenche a seção atual, o botão principal e a seleção de texto, risca os 2px sob o cabeçalho e fecha os quatro lados do card. A placa permanece na noite.",
+        "section": "colors"
+      },
+      {
+        "name": "The Verde ao Vivo Rule",
+        "body": "O verde é o anel de foco, o hover da navegação e a cor de “entrando agora”. O botão principal permanece coral.",
+        "section": "colors"
+      },
+      {
+        "name": "The Duas Faces Rule",
+        "body": "Archivo Black no peso 400 leva o nome, a navegação, o botão, o carimbo e a fala citada. Literata leva o texto corrido e o resumo; no card, também quem falou e a fonte.",
+        "section": "typography"
+      },
+      {
+        "name": "The Medida de Leitura Rule",
+        "body": "O texto corrido fica entre 62ch e 74ch. A fala citada para em 28ch; a primeira, em 22ch.",
+        "section": "layout"
+      },
+      {
+        "name": "The Placa Lisa Rule",
+        "body": "A sombra do sistema é none. A profundidade é o degrau da noite para a placa e para o campo, com a linha de 1px.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Canto Reto Rule",
+        "body": "Botão, campo, placa, navegação e card fecham em canto reto. O raio do sistema é 0px.",
+        "section": "shapes"
+      },
+      {
+        "name": "The Carimbo Vazado Rule",
+        "body": "O carimbo não tem preenchimento. No HTML, borda de 3px, outline de 1px com offset -6px e rotate(-2deg), na tinta do estado. No card, traço externo de 6px, traço interno de 2px e rotate(-0.045rad). prefers-reduced-motion zera a inclinação do HTML.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do assentar a página na noite e o bloco de trabalho na placa, com borda de 1px na linha.",
+      "Do usar coral com texto noite no botão principal e na seção atual.",
+      "Do deixar o carimbo vazado, em Archivo Black, maiúsculas, na tinta do estado.",
+      "Do usar Literata no resumo e no texto corrido, e Archivo Black na fala citada.",
+      "Do gerar o card na noite, com borda coral nos quatro lados, a marca IE e o carimbo vazado.",
+      "Do respeitar prefers-reduced-motion, tirando a inclinação do carimbo no HTML."
+    ],
+    "donts": [
+      "Don't abrir um quadro claro nem preencher o carimbo como chip.",
+      "Don't arredondar cantos nem aplicar drop shadow.",
+      "Don't pintar o botão principal de verde nem a placa de coral.",
+      "Don't escurecer o hover: o coral do hover é mais claro que o coral de repouso.",
+      "Don't copiar o visual do Fato Carimbado."
+    ]
+  }
+}
