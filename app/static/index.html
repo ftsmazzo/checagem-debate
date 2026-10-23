@@ -526,9 +526,16 @@
       fonte.value = current.includes("BANDNEWSFM") ? "bandnews_sp" : current.includes("CBN_SP") ? "cbn_sp" : "custom";
       const archive = state.archive;
       const saved = document.querySelector("#saved");
-      if (archive) {
+      const now = state.active_debate;
+      if (now) {
         saved.hidden = false;
-        saved.innerHTML = `<strong>${escapeHtml(archive.title)} está salvo</strong><span class="meta">${archive.segments} trechos e ${archive.claims} checagens continuam no banco. Criar outro debate não apaga este.</span>`;
+        const old = archive && archive.slug !== now.slug
+          ? ` ${archive.title} continua salvo, com ${archive.segments} trechos, e não entra aqui.`
+          : "";
+        saved.innerHTML = `<strong>Debate ativo: ${escapeHtml(now.title)}</strong><span class="meta">A transcrição e as checagens desta tela são deste debate.${escapeHtml(old)}</span>`;
+      } else if (archive) {
+        saved.hidden = false;
+        saved.innerHTML = `<strong>${escapeHtml(archive.title)} está salvo</strong><span class="meta">${archive.segments} trechos e ${archive.claims} checagens continuam no banco.</span>`;
       } else {
         saved.hidden = true;
       }
@@ -560,7 +567,7 @@
       const totalSegs = state.segments_total || 0;
       document.querySelector("#segments-total").textContent = state.persist === false
         ? "Esta escuta fica só nesta tela. Parar ou reiniciar apaga esses trechos."
-        : (totalSegs ? `${totalSegs} trechos no banco, agrupados em falas` : "Nenhum trecho gravado ainda");
+        : (totalSegs ? `${totalSegs} trechos neste debate, agrupados em falas` : "Nenhum trecho neste debate ainda");
       const gravar = document.querySelector("#gravar");
       if (document.activeElement !== gravar) gravar.value = state.persist === false ? "0" : "1";
       const download = document.querySelector("#download-transcript");

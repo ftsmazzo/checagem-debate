@@ -12,7 +12,7 @@ from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 
 from app.db import (
     FIRST_DEBATE_SLUG,
@@ -159,8 +159,23 @@ def estado(request: Request) -> dict:
     running_flag()
     with session() as db:
         state = db.get(RunState, 1)
-        segments_total = int(db.scalar(select(func.count()).select_from(Segment)) or 0)
-        recent = list(db.scalars(select(Segment).order_by(Segment.id.desc()).limit(240)))
+        active_id = state.active_debate_id if state else None
+        segment_scope = (
+            Segment.debate_id == active_id if active_id else Segment.debate_id.is_(None)
+        )
+        claim_scope = (
+            or_(Claim.debate_id == active_id, Claim.debate_id.is_(None))
+            if active_id
+            else Claim.debate_id.is_(None)
+        )
+        segments_total = int(
+            db.scalar(select(func.count()).select_from(Segment).where(segment_scope)) or 0
+        )
+        recent = list(
+            db.scalars(
+                select(Segment).where(segment_scope).order_by(Segment.id.desc()).limit(240)
+            )
+        )
         recent.reverse()
         segments = list(
             reversed(
@@ -176,7 +191,7 @@ def estado(request: Request) -> dict:
         done = list(
             db.scalars(
                 select(Claim)
-                .where(Claim.status.in_(RESOLVED))
+                .where(Claim.status.in_(RESOLVED), claim_scope)
                 .order_by(Claim.id.desc())
                 .limit(30)
             )
@@ -184,14 +199,14 @@ def estado(request: Request) -> dict:
         queue = list(
             db.scalars(
                 select(Claim)
-                .where(Claim.status.in_(("pendente", "processando")))
+                .where(Claim.status.in_(("pendente", "processando")), claim_scope)
                 .order_by(Claim.id.desc())
                 .limit(12)
             )
         )
         errors = list(
             db.scalars(
-                select(Claim).where(Claim.status == "erro").order_by(Claim.id.desc()).limit(5)
+                select(Claim).where(Claim.status == "erro", claim_scope).order_by(Claim.id.desc()).limit(5)
             )
         )
         claims = done + queue + errors
@@ -359,12 +374,19 @@ def transcricao(
     """Recupera a transcrição completa gravada no banco (ordem cronológica)."""
     authorized(request)
     with session() as db:
-        total = int(db.scalar(select(func.count()).select_from(Segment)) or 0)
-        query = select(Segment).order_by(Segment.id.asc()).limit(limit)
+        state = db.get(RunState, 1)
+        active_id = state.active_debate_id if state else None
+        segment_scope = (
+            Segment.debate_id == active_id if active_id else Segment.debate_id.is_(None)
+        )
+        total = int(
+            db.scalar(select(func.count()).select_from(Segment).where(segment_scope)) or 0
+        )
+        query = select(Segment).where(segment_scope).order_by(Segment.id.asc()).limit(limit)
         if after_id:
             query = (
                 select(Segment)
-                .where(Segment.id > after_id)
+                .where(segment_scope, Segment.id > after_id)
                 .order_by(Segment.id.asc())
                 .limit(limit)
             )
