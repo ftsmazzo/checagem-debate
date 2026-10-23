@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Leitura · Mentirômetro</title>
+  <link rel="icon" type="image/png" href="/static/logo-ie.png">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f141c; --surface: #1a222f; --ink: #f2f4f8; --muted: #9aa6b8;
+      --line: #2c3648; --coral: #e8786a; --ok: #3dce8f; --warn: #e0a43a; --bad: #ff6b6b;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font-family: Montserrat, system-ui, sans-serif; }
+    header, main { width: min(880px, calc(100% - 28px)); margin: 0 auto; }
+    header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 28px 0 8px; flex-wrap: wrap; }
+    h1 { margin: 0; font-size: 1.6rem; }
+    .kicker { margin: 0 0 4px; color: var(--coral); font-weight: 700; }
+    .nav { display: flex; gap: 8px; flex-wrap: wrap; }
+    .nav a {
+      display: inline-flex; align-items: center; min-height: 42px; padding: 0 16px;
+      border-radius: 999px; border: 1px solid var(--line); background: var(--surface);
+      color: var(--ink); font-weight: 800; text-decoration: none;
+    }
+    .nav a.here { background: var(--coral); border-color: transparent; color: #fff; }
+    .lead, .meta { color: var(--muted); }
+    .filters, article, form.erro {
+      background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px;
+    }
+    .filters { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+    select, textarea, button { font: inherit; border-radius: 10px; border: 1px solid var(--line); background: #222b3a; color: var(--ink); padding: 10px 12px; }
+    button { background: var(--coral); color: #1a1010; font-weight: 800; cursor: pointer; }
+    article { margin-top: 12px; }
+    article p { line-height: 1.55; }
+    .chip { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; }
+    .sustentado, .sustentado_ressalva { color: var(--ok); }
+    .exagerado, .nao_e_bem_assim, .promessa { color: var(--warn); }
+    .contradito, .distorcido, .sem_prova { color: var(--bad); }
+    a { color: var(--coral); }
+    .correction { border-left: 3px solid var(--coral); padding-left: 10px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <p class="kicker">IEleitoral</p>
+      <h1>Mentirômetro</h1>
+    </div>
+    <nav class="nav" aria-label="Seções">
+      <a class="here" href="/leitura">Leitura</a>
+      <a href="/metodo">Método</a>
+    </nav>
+  </header>
+  <main>
+    <p class="lead">Fala, carimbo, contexto e fonte. A escuta fica no painel.</p>
+    <div class="filters">
+      <select id="speaker" aria-label="Candidato">
+        <option value="">Os dois</option>
+        <option value="lula">Lula</option>
+        <option value="flavio">Flávio</option>
+      </select>
+      <select id="status" aria-label="Carimbo">
+        <option value="">Todos os carimbos</option>
+      </select>
+      <select id="theme" aria-label="Tema">
+        <option value="">Todos os temas</option>
+      </select>
+    </div>
+    <p id="error" class="meta"></p>
+    <div id="list"></div>
+  </main>
+  <script src="/static/card.js"></script>
+  <script>
+    const labels = {
+      sustentado: "Sustentado", sustentado_ressalva: "Sustentado com ressalva",
+      nao_e_bem_assim: "Não é bem assim", exagerado: "Exagerado", distorcido: "Distorcido",
+      contradito: "Contradito", sem_prova: "Sem prova", sem_prova_publica: "Sem prova pública",
+      versoes_em_disputa: "Versões em disputa", indicio: "Indício", dados_incompletos: "Dados incompletos",
+      audio_confuso: "Áudio confuso", sem_evidencia: "Sem fonte suficiente", inconclusivo: "Em aberto",
+      promessa: "Promessa"
+    };
+    const themes = {
+      saude: "Saúde", economia: "Economia", seguranca: "Segurança", educacao: "Educação",
+      meio_ambiente: "Meio ambiente", assistencia: "Assistência", infraestrutura: "Infraestrutura",
+      politica: "Política", outro: "Outro"
+    };
+    const who = { lula: "Lula", flavio: "Flávio", avulsa: "Checagem" };
+    const errorBox = document.querySelector("#error");
+
+    function escapeHtml(value) {
+      return String(value || "").replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[char]));
+    }
+
+    function fill(select, entries, empty) {
+      const current = select.value;
+      select.innerHTML = `<option value="">${empty}</option>` + entries.map(([key, label]) =>
+        `<option value="${escapeHtml(key)}">${escapeHtml(label)}</option>`
+      ).join("");
+      select.value = current;
+    }
+
+    function card(claim) {
+      const sources = (claim.sources || []).map((source) =>
+        `<li><span class="meta">${escapeHtml(source.kind || "")}</span> <a href="${escapeHtml(source.url)}" target="_blank" rel="noopener">${escapeHtml(source.title || "fonte")}</a><br>${escapeHtml(source.excerpt || source.note || "")}</li>`
+      ).join("");
+      const correction = claim.correction
+        ? `<p class="correction"><strong>Correção.</strong> ${escapeHtml(claim.correction)}</p>`
+        : "";
+      return `<article>
+        <span class="chip ${escapeHtml(claim.status)}">${escapeHtml(labels[claim.status] || claim.status)}</span>
+        <span class="meta">${escapeHtml(who[claim.speaker] || claim.speaker)} · ${escapeHtml(themes[claim.theme] || "")}</span>
+        <p><strong>${escapeHtml(claim.normalized || claim.quote)}</strong></p>
+        <p>${escapeHtml(claim.summary || "")}</p>
+        ${claim.missing ? `<p class="meta">${escapeHtml(claim.missing)}</p>` : ""}
+        ${sources ? `<ul>${sources}</ul>` : ""}
+        ${correction}
+        <p>
+          <button type="button" data-card="feed" data-id="${claim.id}">Imagem</button>
+          <button type="button" data-card="stories" data-id="${claim.id}">Stories</button>
+        </p>
+        <form class="erro" data-erro="${claim.id}">
+          <textarea name="note" minlength="8" maxlength="500" required placeholder="Achei um erro. Diga o que está errado."></textarea>
+          <button type="submit">Achei um erro</button>
+        </form>
+      </article>`;
+    }
+
+    fill(document.querySelector("#status"), Object.entries(labels), "Todos os carimbos");
+    fill(document.querySelector("#theme"), Object.entries(themes), "Todos os temas");
+
+    let claims = [];
+
+    async function load() {
+      const params = new URLSearchParams();
+      for (const id of ["speaker", "status", "theme"]) {
+        const value = document.querySelector("#" + id).value;
+        if (value) params.set(id, value);
+      }
+      const response = await fetch("/api/publico?" + params.toString());
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || "falha na leitura");
+      claims = data.claims || [];
+      document.querySelector("#list").innerHTML = claims.length
+        ? claims.map(card).join("")
+        : `<p class="meta">Nenhuma checagem publicada com esse filtro.</p>`;
+    }
+
+    document.querySelector("#list").addEventListener("click", (event) => {
+      const button = event.target.closest("[data-card]");
+      if (!button) return;
+      const claim = claims.find((item) => item.id === Number(button.dataset.id));
+      if (claim) MentiroCard.png(claim, button.dataset.card);
+    });
+
+    document.querySelector("#list").addEventListener("submit", async (event) => {
+      const form = event.target.closest("[data-erro]");
+      if (!form) return;
+      event.preventDefault();
+      errorBox.textContent = "";
+      try {
+        const response = await fetch("/api/publico/erros", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ claim_id: Number(form.dataset.erro), note: form.note.value })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.detail || "não foi possível enviar");
+        form.reset();
+        errorBox.textContent = "Recebido. A correção entra no card quando o painel publicar.";
+      } catch (error) {
+        errorBox.textContent = error.message;
+      }
+    });
+
+    for (const id of ["speaker", "status", "theme"]) {
+      document.querySelector("#" + id).addEventListener("change", () => {
+        load().catch((error) => { errorBox.textContent = error.message; });
+      });
+    }
+
+    load().catch((error) => { errorBox.textContent = error.message; });
+  </script>
+</body>
+</html>

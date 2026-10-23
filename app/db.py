@@ -53,6 +53,18 @@ class Claim(Base):
     summary: Mapped[str] = mapped_column(Text, default="")
     missing: Mapped[str] = mapped_column(Text, default="")
     sources_json: Mapped[str] = mapped_column(Text, default="[]")
+    theme: Mapped[str] = mapped_column(String(40), default="")
+    correction: Mapped[str] = mapped_column(Text, default="")
+    listed: Mapped[int] = mapped_column(Integer, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class CorrectionReport(Base):
+    __tablename__ = "correction_reports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    claim_id: Mapped[int] = mapped_column(Integer)
+    note: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
@@ -96,17 +108,23 @@ def _add_missing_columns(bound) -> None:
     insp = inspect(bound)
     tables = set(insp.get_table_names())
     wanted = {
-        "segments": ("debate_id", "INTEGER"),
-        "claims": ("debate_id", "INTEGER"),
-        "run_state": ("active_debate_id", "INTEGER"),
+        "segments": [("debate_id", "INTEGER")],
+        "claims": [
+            ("debate_id", "INTEGER"),
+            ("theme", "VARCHAR(40) DEFAULT ''"),
+            ("correction", "TEXT DEFAULT ''"),
+            ("listed", "INTEGER DEFAULT 1"),
+        ],
+        "run_state": [("active_debate_id", "INTEGER")],
     }
     alters: list[str] = []
-    for table, (column, kind) in wanted.items():
+    for table, columns in wanted.items():
         if table not in tables:
             continue
         names = {item["name"] for item in insp.get_columns(table)}
-        if column not in names:
-            alters.append(f"ALTER TABLE {table} ADD COLUMN {column} {kind}")
+        for column, kind in columns:
+            if column not in names:
+                alters.append(f"ALTER TABLE {table} ADD COLUMN {column} {kind}")
     if not alters:
         return
     with bound.begin() as conn:
@@ -175,5 +193,19 @@ def claim_dict(row: Claim) -> dict:
         "summary": row.summary,
         "missing": row.missing,
         "sources": sources,
+        "theme": getattr(row, "theme", "") or "",
+        "correction": getattr(row, "correction", "") or "",
+        "listed": int(getattr(row, "listed", 1) or 0),
         "created_at": row.created_at.isoformat() if row.created_at else "",
     }
+
+
+def store_verdict(row: Claim, verdict: dict) -> None:
+    import json
+
+    row.status = str(verdict.get("status") or "erro")[:32]
+    row.summary = str(verdict.get("summary") or "")
+    row.missing = str(verdict.get("missing") or "")
+    row.confidence = float(verdict.get("confidence") or 0)
+    row.sources_json = json.dumps(verdict.get("sources") or [], ensure_ascii=False)
+    row.theme = str(verdict.get("theme") or "")[:40]

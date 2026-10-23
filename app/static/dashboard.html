@@ -38,7 +38,9 @@
     .phrase a { color: var(--coral); }
     .phrase strong { display: block; margin-bottom: 6px; }
     .chip { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
-    .sustentado { color: var(--ok); } .contradito { color: var(--bad); } .exagerado { color: var(--warn); }
+    .sustentado, .sustentado_ressalva { color: var(--ok); }
+    .contradito, .distorcido, .sem_prova { color: var(--bad); }
+    .exagerado, .nao_e_bem_assim, .promessa { color: var(--warn); }
     .error { color: var(--bad); }
     @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
   </style>
@@ -53,6 +55,7 @@
       <a href="/">Ao vivo</a>
       <a href="/checar">Checar frase</a>
       <a class="here" href="/dashboard">Placar</a>
+      <a href="/leitura">Leitura</a>
     </nav>
   </header>
   <main>
@@ -77,8 +80,11 @@
     const app = document.querySelector("#app");
     const errorBox = document.querySelector("#error");
     const labels = {
-      sustentado: "sustentado", contradito: "contradito", exagerado: "exagerado",
-      sem_evidencia: "sem evidência", inconclusivo: "inconclusivo"
+      sustentado: "sustentado", sustentado_ressalva: "com ressalva", nao_e_bem_assim: "não é bem assim",
+      contradito: "contradito", exagerado: "exagerado", distorcido: "distorcido", sem_prova: "sem prova",
+      sem_prova_publica: "sem prova pública", versoes_em_disputa: "em disputa", indicio: "indício",
+      dados_incompletos: "dados incompletos", audio_confuso: "áudio confuso", promessa: "promessa",
+      sem_evidencia: "sem evidência", inconclusivo: "em aberto"
     };
 
     async function api(path, options) {
@@ -98,23 +104,24 @@
     }
 
     function card(item) {
-      const pct = item.mentira_percent == null ? "Ainda sem número" : item.mentira_percent.toLocaleString("pt-BR") + "%";
-      const note = item.base
-        ? `${item.counts.contradito} falas contrariadas em ${item.base} com fonte. Exagero e falta de fonte ficam na contagem abaixo.`
-        : "Este candidato ainda não tem fala checada neste debate. O número só aparece quando houver fonte.";
-      const counts = Object.entries(item.counts).map(([key, value]) => `<span>${labels[key]} ${value}</span>`).join("");
+      const total = Object.values(item.counts).reduce((sum, value) => sum + value, 0);
+      const note = total
+        ? "Cada número é um carimbo. Promessa não entra como erro."
+        : "Este candidato ainda não tem fala checada neste debate.";
+      const counts = Object.entries(item.counts).filter(([, value]) => value).map(([key, value]) => `<span>${labels[key] || key} ${value}</span>`).join("");
       const phrases = (item.claims || []).map((row) => {
         const source = (row.sources || [])[0];
         const link = source ? `<a href="${escapeHtml(source.url)}" target="_blank" rel="noopener">${escapeHtml(source.title || "fonte")}</a>` : "";
-        return `<article class="phrase"><span class="chip ${row.status}">${labels[row.status] || row.status}</span><strong>${escapeHtml(row.normalized || row.quote)}</strong><p class="meta">${escapeHtml(row.summary || "")}</p>${link}</article>`;
+        const excerpt = source ? `<p class="meta">${escapeHtml(source.kind || "")} ${escapeHtml(source.excerpt || source.note || "")}</p>` : "";
+        return `<article class="phrase"><span class="chip ${row.status}">${labels[row.status] || row.status}</span><strong>${escapeHtml(row.normalized || row.quote)}</strong><p class="meta">${escapeHtml(row.summary || "")}</p>${excerpt}${link}</article>`;
       }).join("");
-      return `<section class="card"><h2>${escapeHtml(item.nome)}</h2><p class="pct">${pct}</p><p class="meta">${note}</p><div class="counts">${counts}</div>${phrases}</section>`;
+      return `<section class="card"><h2>${escapeHtml(item.nome)}</h2><p class="pct">${total}</p><p class="meta">${note}</p><div class="counts">${counts}</div>${phrases}</section>`;
     }
 
     async function load(slug) {
       const data = await api("/api/debates/" + encodeURIComponent(slug) + "/placar");
       document.querySelector("#formula").textContent = data.debate
-        ? `${data.debate.title} · a porcentagem usa só falas com fonte: contrariadas divididas por sustentadas, contrariadas e exageradas.`
+        ? `${data.debate.title} · o placar conta carimbos. A leitura pública fica em Leitura.`
         : "";
       document.querySelector("#cards").innerHTML = (data.candidates || []).map(card).join("");
     }

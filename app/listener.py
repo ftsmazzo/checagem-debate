@@ -13,7 +13,7 @@ import httpx
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 
-from app.db import Claim, RunState, Segment, session, utcnow
+from app.db import Claim, RunState, Segment, session, store_verdict, utcnow
 from app.factcheck import extract_claims, verify_claim
 from app.settings import settings
 
@@ -470,26 +470,20 @@ class DebateListener:
             claim_id, quote, normalized, fast = claimed
             try:
                 verdict = verify_claim(quote, normalized, fast=fast)
-                status = verdict["status"]
-                summary = verdict["summary"]
-                missing = verdict["missing"]
-                confidence = verdict["confidence"]
-                sources = json.dumps(verdict["sources"], ensure_ascii=False)
             except Exception as exc:
-                status = "erro"
-                summary = str(exc)[:800]
-                missing = ""
-                confidence = 0
-                sources = "[]"
+                verdict = {
+                    "status": "erro",
+                    "summary": str(exc)[:800],
+                    "missing": "",
+                    "confidence": 0,
+                    "sources": [],
+                    "theme": "",
+                }
                 self._set_state(None, None, f"checagem: {exc}")
             with session() as db:
                 current = db.get(Claim, claim_id)
                 if current and current.status in {"pendente", "processando"}:
-                    current.status = status
-                    current.summary = summary
-                    current.missing = missing
-                    current.confidence = confidence
-                    current.sources_json = sources
+                    store_verdict(current, verdict)
                     db.commit()
 
 

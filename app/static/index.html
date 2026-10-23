@@ -211,10 +211,10 @@
       color: #0f141c;
       letter-spacing: 0.02em;
     }
-    .sustentado { background: var(--ie-success); }
-    .contradito { background: var(--ie-danger); color: #fff; }
-    .exagerado { background: var(--ie-warn); }
-    .sem_evidencia, .inconclusivo, .erro { background: var(--ie-accent); color: #fff; }
+    .sustentado, .sustentado_ressalva { background: var(--ie-success); }
+    .contradito, .distorcido, .sem_prova { background: var(--ie-danger); color: #fff; }
+    .exagerado, .nao_e_bem_assim, .promessa { background: var(--ie-warn); }
+    .sem_evidencia, .inconclusivo, .sem_prova_publica, .versoes_em_disputa, .indicio, .dados_incompletos, .audio_confuso, .erro { background: var(--ie-accent); color: #fff; }
     .pendente { background: var(--ie-muted); color: #0f141c; }
     .error { color: #ffb4b4; white-space: pre-wrap; margin: 10px 0; }
     a { color: var(--ie-accent); }
@@ -241,6 +241,8 @@
       <a class="here" href="/">Ao vivo</a>
       <a href="/checar">Checar frase</a>
       <a href="/dashboard">Placar</a>
+      <a href="/leitura">Leitura</a>
+      <a href="/metodo">Método</a>
     </nav>
   </header>
   <main>
@@ -303,11 +305,21 @@
     const labels = {
       pendente: "Checando",
       processando: "Checando",
-      sustentado: "Com fonte a favor",
-      contradito: "Fontes contrariam",
-      exagerado: "Recorte exagerado",
+      sustentado: "Sustentado",
+      sustentado_ressalva: "Sustentado com ressalva",
+      nao_e_bem_assim: "Não é bem assim",
+      contradito: "Contradito",
+      exagerado: "Exagerado",
+      distorcido: "Distorcido",
+      sem_prova: "Sem prova",
+      sem_prova_publica: "Sem prova pública",
+      versoes_em_disputa: "Versões em disputa",
+      indicio: "Indício",
+      dados_incompletos: "Dados incompletos",
+      audio_confuso: "Áudio confuso",
+      promessa: "Promessa",
       sem_evidencia: "Sem fonte suficiente",
-      inconclusivo: "Depende do recorte",
+      inconclusivo: "Em aberto",
       erro: "Erro na consulta"
     };
     const login = document.querySelector("#login");
@@ -449,6 +461,32 @@
         return;
       }
       const button = event.target.closest("[data-copy]");
+      const correct = event.target.closest("[data-correct]");
+      const hide = event.target.closest("[data-hide]");
+      if (correct) {
+        const text = window.prompt("Texto da correção que entra no card público.");
+        if (!text || text.trim().length < 8) return;
+        try {
+          await api("/api/claims/" + correct.dataset.correct + "/correcao", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: text.trim() })
+          });
+          await refresh();
+        } catch (error) {
+          errorBox.textContent = error.message;
+        }
+        return;
+      }
+      if (hide) {
+        try {
+          await api("/api/claims/" + hide.dataset.hide + "/ocultar", { method: "POST" });
+          await refresh();
+        } catch (error) {
+          errorBox.textContent = error.message;
+        }
+        return;
+      }
       if (!button) return;
       const claim = claimById.get(Number(button.dataset.copy));
       if (!claim) return;
@@ -544,6 +582,13 @@
       document.querySelector("#claims").innerHTML = state.claims.length
         ? state.claims.map(renderClaim).join("")
         : `<p class="meta">Nenhuma frase enviada ainda.</p>`;
+      const reports = state.reports || [];
+      if (reports.length) {
+        document.querySelector("#claims").insertAdjacentHTML(
+          "afterbegin",
+          `<p class="meta">Avisos de erro: ${reports.map((row) => `#${row.claim_id} ${escapeHtml(row.note)}`).join(" · ")}</p>`
+        );
+      }
     }
 
     function formatWhen(value) {
@@ -555,8 +600,10 @@
     function renderClaim(claim) {
       const label = labels[claim.status] || claim.status;
       const sources = (claim.sources || []).map((source) =>
-        `<li><a href="${escapeHtml(source.url)}" target="_blank" rel="noreferrer">${escapeHtml(source.title)}</a> ${escapeHtml(source.note || "")}</li>`
+        `<li><span class="meta">${escapeHtml(source.kind || "")}</span> <a href="${escapeHtml(source.url)}" target="_blank" rel="noreferrer">${escapeHtml(source.title)}</a> ${escapeHtml(source.excerpt || source.note || "")}</li>`
       ).join("");
+      const correction = claim.correction ? `<p class="meta">Correção publicada: ${escapeHtml(claim.correction)}</p>` : "";
+      const air = claim.listed === 0 ? "Republicar" : "Tirar do ar";
       return `<article class="claim">
         <span class="chip ${escapeHtml(claim.status)}">${escapeHtml(label)}</span>
         <p><strong>${escapeHtml(claim.normalized)}</strong></p>
@@ -564,10 +611,13 @@
           <button type="button" class="ghost" data-copy="${claim.id}">Copiar resposta</button>
           <button type="button" class="ghost" data-card="feed" data-id="${claim.id}">Imagem</button>
           <button type="button" class="ghost" data-card="stories" data-id="${claim.id}">Stories</button>
+          <button type="button" class="ghost" data-correct="${claim.id}">Publicar correção</button>
+          <button type="button" class="ghost" data-hide="${claim.id}">${air}</button>
         </div>
         <p class="meta">${escapeHtml(claim.quote)}</p>
         <p>${escapeHtml(claim.summary || "")}</p>
         ${claim.missing ? `<p class="meta">${escapeHtml(claim.missing)}</p>` : ""}
+        ${correction}
         ${sources ? `<ul>${sources}</ul>` : ""}
       </article>`;
     }

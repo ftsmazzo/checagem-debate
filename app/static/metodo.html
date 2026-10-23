@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Método · Mentirômetro</title>
+  <link rel="icon" type="image/png" href="/static/logo-ie.png">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f141c; --surface: #1a222f; --ink: #f2f4f8; --muted: #9aa6b8;
+      --line: #2c3648; --coral: #e8786a;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font-family: Montserrat, system-ui, sans-serif; }
+    header, main { width: min(760px, calc(100% - 28px)); margin: 0 auto; }
+    header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 28px 0 8px; flex-wrap: wrap; }
+    h1 { margin: 0; font-size: 1.6rem; }
+    h2 { font-size: 1rem; margin: 22px 0 8px; }
+    .kicker { margin: 0 0 4px; color: var(--coral); font-weight: 700; }
+    p, li { line-height: 1.6; color: #d5dde8; }
+    .nav { display: flex; gap: 8px; flex-wrap: wrap; }
+    .nav a {
+      display: inline-flex; align-items: center; min-height: 42px; padding: 0 16px;
+      border-radius: 999px; border: 1px solid var(--line); background: var(--surface);
+      color: var(--ink); font-weight: 800; text-decoration: none;
+    }
+    .nav a.here { background: var(--coral); border-color: transparent; color: #fff; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <p class="kicker">IEleitoral</p>
+      <h1>Método</h1>
+    </div>
+    <nav class="nav" aria-label="Seções">
+      <a href="/leitura">Leitura</a>
+      <a class="here" href="/metodo">Método</a>
+    </nav>
+  </header>
+  <main>
+    <p>O Mentirômetro acompanha a fala enquanto ela está no ar. Cada checagem mostra o carimbo, o contexto e a fonte. Não há nota de quem ganhou o debate.</p>
+    <h2>Carimbo fechado</h2>
+    <p>Só permanece com pelo menos uma página https.</p>
+    <ul>
+      <li>Sustentado: a fonte apoia o núcleo da frase no recorte certo.</li>
+      <li>Sustentado com ressalva: o núcleo se sustenta, com limite de período, lugar ou definição.</li>
+      <li>Não é bem assim: há um fato, e também um salto que a fonte não dá.</li>
+      <li>Exagerado: a direção pode estar certa, mas o número, o prazo ou o recorte está maior.</li>
+      <li>Distorcido: a fonte existe, mas a frase troca o sentido dela.</li>
+      <li>Contradito: a fonte mostra que o núcleo não se sustenta.</li>
+      <li>Sem prova: a fonte mostra que não há prova pública do que foi dito.</li>
+    </ul>
+    <h2>Em aberto</h2>
+    <ul>
+      <li>Sem prova pública, versões em disputa, indício, dados incompletos e áudio confuso.</li>
+      <li>Se a segunda leitura, feita sem o nome de quem falou, discordar de verdade, o carimbo fechado não sai. A fala fica em versões em disputa.</li>
+    </ul>
+    <h2>Promessa</h2>
+    <p>Compromisso futuro é categoria própria. Não entra como erro.</p>
+    <h2>Fonte</h2>
+    <p>Cada fonte leva um tipo — oficial, checagem ou imprensa — e um trecho curto da página. Sem https, não há carimbo fechado.</p>
+    <p>Quem opera publica a correção e pode tirar uma checagem do ar. Esta página só explica a régua.</p>
+  </main>
+</body>
+</html>

@@ -38,6 +38,32 @@ class VerdictTests(unittest.TestCase):
         self.assertEqual(verdict["status"], "sustentado")
         self.assertEqual(verdict["confidence"], 0.65)
         self.assertEqual(verdict["sources"][0]["title"], "IBGE")
+        self.assertEqual(verdict["sources"][0]["kind"], "oficial")
+        self.assertEqual(verdict["sources"][0]["excerpt"], "tabela")
+        self.assertEqual(verdict["theme"], "outro")
+
+    def test_carimbo_novo_sem_https_cai(self):
+        verdict = sanitize_verdict(
+            {"status": "distorcido", "theme": "saude", "sources": [{"url": "http://exemplo.com"}]}
+        )
+        self.assertEqual(verdict["status"], "sem_evidencia")
+
+    def test_promessa_nao_exige_fonte(self):
+        verdict = sanitize_verdict({"status": "promessa", "summary": "compromisso", "sources": []})
+        self.assertEqual(verdict["status"], "promessa")
+
+    def test_segunda_leitura_discordante(self):
+        from app.factcheck import stamps_conflict
+
+        self.assertTrue(stamps_conflict("sustentado", "contradito"))
+        self.assertFalse(stamps_conflict("sustentado", "sustentado_ressalva"))
+        self.assertFalse(stamps_conflict("sustentado", "sem_evidencia"))
+
+    def test_tipo_de_fonte(self):
+        from app.factcheck import source_kind
+
+        self.assertEqual(source_kind("https://www.aosfatos.org/noticia/x"), "checagem")
+        self.assertEqual(source_kind("https://www1.folha.uol.com.br/poder/x"), "imprensa")
 
     def test_http_nao_conta(self):
         verdict = sanitize_verdict(

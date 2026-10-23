@@ -19,6 +19,7 @@ from app.db import (
     SCORE_BASE,
     SCORE_SPEAKERS,
     Claim,
+    CorrectionReport,
     Debate,
     RunState,
     Segment,
@@ -27,6 +28,7 @@ from app.db import (
     mentira_percent,
     ping,
     session,
+    store_verdict,
     utcnow,
 )
 from app.listener import (
@@ -40,6 +42,7 @@ from app.listener import (
 )
 from app import ie_mcp
 from app.settings import settings
+from app.factcheck import RESOLVED_STATUSES
 from app.transcript import group_turns
 
 sessions: set[str] = set()
@@ -93,7 +96,7 @@ class DebateBody(BaseModel):
 
 
 SPEAKER_LABEL = {"lula": "Lula", "flavio": "Flávio Bolsonaro"}
-RESOLVED = ("sustentado", "contradito", "exagerado", "sem_evidencia", "inconclusivo")
+RESOLVED = RESOLVED_STATUSES
 
 
 @app.get("/health")
@@ -170,17 +173,7 @@ def estado(request: Request) -> dict:
         done = list(
             db.scalars(
                 select(Claim)
-                .where(
-                    Claim.status.in_(
-                        (
-                            "sustentado",
-                            "contradito",
-                            "exagerado",
-                            "sem_evidencia",
-                            "inconclusivo",
-                        )
-                    )
-                )
+                .where(Claim.status.in_(RESOLVED))
                 .order_by(Claim.id.desc())
                 .limit(30)
             )
@@ -232,6 +225,12 @@ def estado(request: Request) -> dict:
                 )
                 or 0
             )
+        reports = [
+            {"id": row.id, "claim_id": row.claim_id, "note": row.note}
+            for row in db.scalars(
+                select(CorrectionReport).order_by(CorrectionReport.id.desc()).limit(8)
+            )
+        ]
     return {
         "running": bool(state.running) if state else False,
         "youtube_url": state.youtube_url if state else settings.youtube_default,
@@ -246,6 +245,7 @@ def estado(request: Request) -> dict:
             "ao_vivo": live_n,
         },
         "segments_total": segments_total,
+        "reports": reports,
         "persist": get_listener().persist,
         "ephemeral": get_listener().preview(),
         "active_debate": active,
@@ -413,28 +413,28 @@ def checar_agora(request: Request) -> dict:
         db.commit()
     try:
         verdict = verify_claim(quote, normalized, fast=True)
-        status = verdict["status"]
-        summary = verdict["summary"]
-        missing = verdict["missing"]
-        confidence = verdict["confidence"]
-        sources = __import__("json").dumps(verdict["sources"], ensure_ascii=False)
     except Exception as exc:
-        status = "erro"
-        summary = str(exc)[:800]
-        missing = ""
-        confidence = 0
-        sources = "[]"
+        verdict = {
+            "status": "erro",
+            "summary": str(exc)[:800],
+            "missing": "",
+            "confidence": 0,
+            "sources": [],
+            "theme": "",
+        }
     with session() as db:
         current = db.get(Claim, claim_id)
         if current:
-            current.status = status
-            current.summary = summary
-            current.missing = missing
-            current.confidence = confidence
-            current.sources_json = sources
+            store_verdict(current, verdict)
             db.commit()
     get_listener().ensure_checker()
-    return {"ok": True, "done": True, "id": claim_id, "status": status, "summary": summary[:240]}
+    return {
+        "ok": True,
+        "done": True,
+        "id": claim_id,
+        "status": verdict["status"],
+        "summary": str(verdict.get("summary") or "")[:240],
+    }
 
 
 def _slugify(value: str) -> str:
@@ -564,6 +564,84 @@ def dashboard() -> FileResponse:
 @app.get("/checar")
 def checar_pagina() -> FileResponse:
     return FileResponse(STATIC / "checar.html")
+
+
+@app.get("/leitura")
+def leitura() -> FileResponse:
+    return FileResponse(STATIC / "leitura.html")
+
+
+@app.get("/metodo")
+def metodo() -> FileResponse:
+    return FileResponse(STATIC / "metodo.html")
+
+
+class ReportBody(BaseModel):
+    claim_id: int = Field(ge=1)
+    note: str = Field(min_length=8, max_length=500)
+
+
+class CorrectionBody(BaseModel):
+    text: str = Field(min_length=8, max_length=500)
+
+
+@app.get("/api/publico")
+def publico(
+    speaker: str = Query(default=""),
+    status: str = Query(default=""),
+    theme: str = Query(default=""),
+) -> dict:
+    who = speaker.strip().lower()
+    stamp = status.strip().lower()
+    topic = theme.strip().lower()
+    with session() as db:
+        query = select(Claim).where(Claim.status.in_(RESOLVED), Claim.listed == 1)
+        if who in {"lula", "flavio"}:
+            query = query.where(Claim.speaker == who)
+        if stamp in RESOLVED:
+            query = query.where(Claim.status == stamp)
+        if topic:
+            query = query.where(Claim.theme == topic)
+        rows = list(db.scalars(query.order_by(Claim.id.desc()).limit(80)))
+    return {"claims": [claim_dict(row) for row in rows]}
+
+
+@app.post("/api/publico/erros")
+def publico_erro(body: ReportBody) -> dict:
+    note = " ".join(body.note.split())
+    with session() as db:
+        claim = db.get(Claim, body.claim_id)
+        if claim is None or claim.status not in RESOLVED or claim.listed != 1:
+            raise HTTPException(status_code=404, detail="checagem não encontrada")
+        db.add(CorrectionReport(claim_id=claim.id, note=note[:500]))
+        db.commit()
+    return {"ok": True}
+
+
+@app.post("/api/claims/{claim_id}/correcao")
+def publicar_correcao(claim_id: int, body: CorrectionBody, request: Request) -> dict:
+    authorized(request)
+    text = " ".join(body.text.split())
+    with session() as db:
+        claim = db.get(Claim, claim_id)
+        if claim is None:
+            raise HTTPException(status_code=404, detail="checagem não encontrada")
+        claim.correction = text[:500]
+        db.commit()
+    return {"ok": True}
+
+
+@app.post("/api/claims/{claim_id}/ocultar")
+def ocultar(claim_id: int, request: Request) -> dict:
+    authorized(request)
+    with session() as db:
+        claim = db.get(Claim, claim_id)
+        if claim is None:
+            raise HTTPException(status_code=404, detail="checagem não encontrada")
+        claim.listed = 0 if claim.listed else 1
+        listed = claim.listed
+        db.commit()
+    return {"ok": True, "listed": listed}
 
 
 app.mount("/static", StaticFiles(directory=STATIC), name="static")

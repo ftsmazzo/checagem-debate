@@ -6,14 +6,57 @@ import httpx
 from app import ie_mcp
 from app.settings import settings
 
-ALLOWED = {
+CLOSED = (
     "sustentado",
-    "contradito",
+    "sustentado_ressalva",
+    "nao_e_bem_assim",
     "exagerado",
+    "distorcido",
+    "contradito",
+    "sem_prova",
+)
+OPEN = (
+    "sem_prova_publica",
+    "versoes_em_disputa",
+    "indicio",
+    "dados_incompletos",
+    "audio_confuso",
     "sem_evidencia",
     "inconclusivo",
+)
+PROMISE = ("promessa",)
+RESOLVED_STATUSES = CLOSED + OPEN + PROMISE
+ALLOWED = set(RESOLVED_STATUSES)
+NEEDS_SOURCE = set(CLOSED)
+OPEN_RETRY = {
+    "sem_evidencia",
+    "inconclusivo",
+    "sem_prova_publica",
+    "indicio",
+    "dados_incompletos",
+    "audio_confuso",
 }
-NEEDS_SOURCE = {"sustentado", "contradito", "exagerado"}
+STAMP_FAMILY = {
+    "sustentado": "apoio",
+    "sustentado_ressalva": "apoio",
+    "nao_e_bem_assim": "ressalva",
+    "exagerado": "ressalva",
+    "distorcido": "ressalva",
+    "contradito": "negacao",
+    "sem_prova": "negacao",
+}
+THEMES = {
+    "saude",
+    "economia",
+    "seguranca",
+    "educacao",
+    "meio_ambiente",
+    "assistencia",
+    "infraestrutura",
+    "politica",
+    "outro",
+}
+SOURCE_KINDS = {"oficial", "checagem", "imprensa"}
 
 DEBATE_RULES = """
 Debate Lula × Flávio na TV Globo, 23/10/2026, às 21h20.
@@ -39,14 +82,19 @@ VERIFY_SYSTEM = """Você é um checador de fatos para o debate Lula × Flávio n
 """ + DEBATE_RULES + """
 Use a busca na web. Faça buscas adicionais se a primeira for vaga: número + período + definição do termo.
 Responda só JSON:
-{"status":"sustentado|contradito|exagerado|sem_evidencia|inconclusivo","confidence":0.4,"summary":"até 500 caracteres","missing":"o que impediu cravar, ou vazio","sources":[{"title":"nome da página","url":"https://...","note":"o que a página mostra"}]}
+{"status":"sustentado|sustentado_ressalva|nao_e_bem_assim|exagerado|distorcido|contradito|sem_prova|sem_prova_publica|versoes_em_disputa|indicio|dados_incompletos|audio_confuso|promessa","confidence":0.4,"summary":"até 500 caracteres","missing":"o que impediu cravar, ou vazio","theme":"saude|economia|seguranca|educacao|meio_ambiente|assistencia|infraestrutura|politica|outro","sources":[{"title":"nome da página","url":"https://...","kind":"oficial|checagem|imprensa","excerpt":"trecho curto do que a página mostra"}]}
 
 Regras:
-- status sustentado: pelo menos uma fonte https pública apoia o núcleo da frase no recorte certo de tempo e lugar.
-- status contradito: fonte https pública mostra que o núcleo não se sustenta.
-- status exagerado: a direção pode estar certa, mas número, prazo ou recorte está maior do que a fonte.
-- status sem_evidencia: a busca não achou fonte suficiente. Não chute.
-- status inconclusivo: fontes divergem ou a frase depende de definição (qual governo, município, o que conta como creche).
+- sustentado: fonte https apoia o núcleo no recorte certo de tempo e lugar.
+- sustentado_ressalva: o núcleo se sustenta, mas a fonte limita período, lugar ou definição.
+- nao_e_bem_assim: a frase mistura fato verdadeiro com um salto que a fonte não dá.
+- exagerado: a direção pode estar certa, mas número, prazo ou recorte está maior do que a fonte.
+- distorcido: a fonte existe, mas a frase troca o sentido dela.
+- contradito: fonte https mostra que o núcleo não se sustenta.
+- sem_prova: a fonte https mostra que não há prova pública do que foi dito.
+- sem_prova_publica, versoes_em_disputa, indicio, dados_incompletos, audio_confuso: deixe em aberto. Não force carimbo fechado.
+- promessa: compromisso futuro. Não é erro e não é carimbo de fato.
+- Sem URL https não há carimbo fechado.
 - Prefira IBGE, INEP, Portal da Transparência, gov.br, TSE, Senado, Câmara e séries oficiais. Agência de checagem (Lupa, Aos Fatos, Estadão Verifica) é secundária e deve ser nomeada.
 - Se houver bloco Inteligência Eleitoral: cifras TSE/IBGE/CadÚnico/Bolsa Família desse bloco contam como evidência oficial. Trechos de fato_fake do acervo ajudam, mas cite a fonte. Plano/estratégia da campanha Flávio é contexto narrativo, não prova contra ou a favor de Lula.
 - Toda url tem de ser https e tem de ter saído da busca, das citações ou do acervo IE. Não invente url.
@@ -54,7 +102,13 @@ Regras:
 - Não use a palavra fake. Não escreva texto de campanha.
 - confidence alto (>=0.7) só com fonte oficial ou duas fontes independentes apontando o mesmo sentido."""
 
-SEARCH_BRIEF_SYSTEM = """Você pesquisa fontes públicas sobre uma afirmação atribuída a Lula no debate de 18/10/2026.
+BLIND_SYSTEM = """Você faz uma segunda leitura, sem saber quem falou.
+Não use nome de candidato para decidir. Julgue só a afirmação e as fontes recebidas.
+Responda só JSON:
+{"status":"sustentado|sustentado_ressalva|nao_e_bem_assim|exagerado|distorcido|contradito|sem_prova|sem_prova_publica|versoes_em_disputa|indicio|dados_incompletos|audio_confuso|promessa","summary":"até 300 caracteres"}
+Não invente url. Se as fontes não fecharem o carimbo, use um estado em aberto."""
+
+SEARCH_BRIEF_SYSTEM = """Você pesquisa fontes públicas sobre uma afirmação de debate eleitoral.
 Responda só JSON:
 {"findings":"resumo factual em até 700 caracteres","queries":["busca1","busca2"],"sources":[{"title":"nome","url":"https://...","note":"o que a página diz"}]}
 Não invente url. Prefira fontes oficiais brasileiras."""
@@ -77,10 +131,41 @@ def parse_json(raw: str) -> dict:
     return data
 
 
+def source_kind(url: str, hinted: str = "") -> str:
+    kind = (hinted or "").strip().lower()
+    if kind in SOURCE_KINDS and not (kind == "oficial" and is_agency_url(url)):
+        return kind
+    if is_agency_url(url):
+        return "checagem"
+    folded = (url or "").casefold()
+    official = (
+        "gov.br",
+        "ibge.gov.br",
+        "inep.gov.br",
+        "tse.jus.br",
+        "senado.leg.br",
+        "camara.leg.br",
+        "bcb.gov.br",
+        "jus.br",
+    )
+    if any(mark in folded for mark in official) and "verifica" not in folded and "fato-ou" not in folded:
+        return "oficial"
+    return "imprensa"
+
+
+def stamps_conflict(first: str, second: str) -> bool:
+    if second not in NEEDS_SOURCE or first not in NEEDS_SOURCE:
+        return False
+    return STAMP_FAMILY.get(first) != STAMP_FAMILY.get(second)
+
+
 def sanitize_verdict(payload: dict) -> dict:
     status = str(payload.get("status") or "").strip().lower()
     if status not in ALLOWED:
         status = "inconclusivo"
+    theme = re.sub(r"[^a-z_]", "", str(payload.get("theme") or "").strip().lower())
+    if theme not in THEMES:
+        theme = "outro"
     sources = []
     for item in payload.get("sources") or []:
         if not isinstance(item, dict):
@@ -88,11 +173,14 @@ def sanitize_verdict(payload: dict) -> dict:
         url = str(item.get("url") or "").strip()
         if not url.startswith("https://"):
             continue
+        excerpt = str(item.get("excerpt") or item.get("note") or "")[:280]
         sources.append(
             {
                 "title": str(item.get("title") or url)[:180],
                 "url": url[:500],
-                "note": str(item.get("note") or "")[:300],
+                "kind": source_kind(url, str(item.get("kind") or "")),
+                "excerpt": excerpt,
+                "note": excerpt,
             }
         )
     if status in NEEDS_SOURCE and not sources:
@@ -109,6 +197,7 @@ def sanitize_verdict(payload: dict) -> dict:
         "confidence": confidence,
         "summary": str(payload.get("summary") or "")[:800],
         "missing": str(payload.get("missing") or "")[:400],
+        "theme": theme,
         "sources": sources[:8],
     }
 
@@ -250,7 +339,9 @@ def attach_citations(data: dict, extra: list[dict]) -> dict:
             {
                 "title": str(item.get("title") or url)[:180],
                 "url": url[:500],
-                "note": str(item.get("note") or "")[:300],
+                "kind": str(item.get("kind") or ""),
+                "excerpt": str(item.get("excerpt") or item.get("note") or "")[:280],
+                "note": str(item.get("excerpt") or item.get("note") or "")[:300],
             }
         )
         known.add(url)
@@ -426,34 +517,63 @@ def verify_claim(quote: str, claim: str, fast: bool = False) -> dict:
                 )
     data = attach_citations(data, ie_sources)
     verdict = sanitize_verdict(data)
-    if fast or verdict["status"] not in {"sem_evidencia", "inconclusivo"}:
-        return verdict
-    extra = agency_search(quote, claim)
-    if not extra:
-        return verdict
-    merged = attach_citations(
-        {
-            "status": verdict["status"],
-            "confidence": verdict["confidence"],
-            "summary": verdict["summary"],
-            "missing": verdict["missing"],
-            "sources": verdict["sources"],
-        },
-        extra,
-    )
+    if not fast and verdict["status"] in OPEN_RETRY:
+        extra = agency_search(quote, claim)
+        if extra:
+            merged = attach_citations(
+                {
+                    "status": verdict["status"],
+                    "confidence": verdict["confidence"],
+                    "summary": verdict["summary"],
+                    "missing": verdict["missing"],
+                    "theme": verdict["theme"],
+                    "sources": verdict["sources"],
+                },
+                extra,
+            )
+            try:
+                review = chat_json(
+                    settings.fact_model,
+                    VERIFY_SYSTEM,
+                    (
+                        "Reavalie com estas checagens já publicadas. "
+                        "Não invente url além das listadas.\n"
+                        f"Afirmação:\n{claim}\n\n"
+                        f"Veredito anterior:\n{json.dumps(merged, ensure_ascii=False)[:4000]}"
+                    ),
+                    timeout=25,
+                )
+                review = attach_citations(review, extra)
+                verdict = sanitize_verdict(review)
+            except Exception:
+                verdict = sanitize_verdict(merged)
+    if not fast and verdict["status"] in NEEDS_SOURCE:
+        verdict = _blind_review(claim, verdict)
+    return verdict
+
+
+def _blind_review(claim: str, verdict: dict) -> dict:
     try:
-        review = chat_json(
+        second = chat_json(
             settings.fact_model,
-            VERIFY_SYSTEM,
+            BLIND_SYSTEM,
             (
-                "Reavalie com estas checagens já publicadas. "
-                "Não invente url além das listadas.\n"
-                f"Afirmação:\n{claim}\n\n"
-                f"Veredito anterior:\n{json.dumps(merged, ensure_ascii=False)[:4000]}"
+                "Afirmação, sem dizer quem falou:\n"
+                f"{claim}\n\nFontes já reunidas:\n"
+                f"{json.dumps(verdict['sources'], ensure_ascii=False)[:3000]}"
             ),
             timeout=25,
         )
-        review = attach_citations(review, extra)
-        return sanitize_verdict(review)
     except Exception:
-        return sanitize_verdict(merged)
+        return verdict
+    other = str(second.get("status") or "").strip().lower()
+    if not stamps_conflict(verdict["status"], other):
+        return verdict
+    note = str(second.get("summary") or "").strip()
+    missing = verdict["missing"]
+    extra = "Segunda leitura discordou."
+    if note:
+        extra = f"{extra} {note}"
+    verdict["missing"] = f"{missing} {extra}".strip()[:400]
+    verdict["status"] = "versoes_em_disputa"
+    return verdict
