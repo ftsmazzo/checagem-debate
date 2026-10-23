@@ -266,6 +266,7 @@ def estado(request: Request) -> dict:
         "reports": reports,
         "persist": get_listener().persist,
         "browser": get_listener().browser_on,
+        "hearing": get_listener().hearing(),
         "ephemeral": get_listener().preview(),
         "active_debate": active,
         "archive": None

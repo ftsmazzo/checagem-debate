@@ -135,6 +135,16 @@ class VerdictTests(unittest.TestCase):
     def test_aceita_bandnews_e_youtube(self):
         self.assertIn("BANDNEWSFM", resolve_stream("bandnews_sp"))
         self.assertIn("CBN_SPAAC", resolve_stream("cbn_sp"))
+
+    def test_tira_repeticao_da_emenda(self):
+        from app.listener import strip_overlap
+
+        merged = strip_overlap(
+            "o capítulo segue na sala",
+            "na sala e ela responde que não",
+        )
+        self.assertEqual(merged, "e ela responde que não")
+        self.assertEqual(strip_overlap("", "frase nova"), "frase nova")
         self.assertIn("youtube.com", resolve_stream("https://www.youtube.com/watch?v=Gqc1rQtzWUk"))
         with self.assertRaises(ValueError):
             resolve_stream("https://evil.example/audio")

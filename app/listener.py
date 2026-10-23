@@ -7,6 +7,7 @@ import re
 import subprocess
 import threading
 import time
+from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -125,6 +126,25 @@ def is_youtube(url: str) -> bool:
     return host in YOUTUBE_HOSTS
 
 
+def strip_overlap(previous: str, new: str) -> str:
+    """Tira da fala nova o pedaço que repetiu o fim da anterior."""
+    prev = previous.split()
+    words = new.split()
+    if not words:
+        return ""
+    limit = min(14, len(prev), len(words))
+
+    def bare(token: str) -> str:
+        return token.casefold().strip(".,;:!?…\"'")
+
+    cut = 0
+    for size in range(limit, 1, -1):
+        if [bare(token) for token in prev[-size:]] == [bare(token) for token in words[:size]]:
+            cut = size
+            break
+    return " ".join(words[cut:])
+
+
 def _fingerprint(text: str) -> str:
     folded = " ".join(text.casefold().split())
     folded = re.sub(r"[^a-z0-9à-ü\s]", "", folded)
@@ -152,7 +172,10 @@ class DebateListener:
         self._ephemeral_seq = 0
         self.browser_on = False
         self.browser_thread: threading.Thread | None = None
-        self.browser_queue: queue.Queue[Path] = queue.Queue(maxsize=200)
+        self.browser_queue: queue.Queue[tuple[int, Path]] = queue.Queue(maxsize=200)
+        self._browser_seq = 0
+        self._browser_tail = ""
+        self._extract_lock = threading.Lock()
 
     def start(self, url: str, persist: bool = True) -> None:
         url = resolve_stream(url)
@@ -192,6 +215,8 @@ class DebateListener:
                 self.ephemeral = []
             self.browser_on = True
             self.audio_stop.clear()
+            self._browser_seq = 0
+            self._browser_tail = ""
             self.browser_thread = threading.Thread(target=self._browser_loop, daemon=True)
             self.browser_thread.start()
         self._set_state(True, None, "")
@@ -204,8 +229,11 @@ class DebateListener:
         suffix = ".wav" if data[:4] == b"RIFF" else ".webm"
         path = self.chunk_dir / f"aba-{time.time_ns()}{suffix}"
         path.write_bytes(data)
+        with self.lock:
+            seq = self._browser_seq
+            self._browser_seq += 1
         try:
-            self.browser_queue.put_nowait(path)
+            self.browser_queue.put_nowait((seq, path))
         except queue.Full:
             path.unlink(missing_ok=True)
             raise RuntimeError("A transcrição da aba está atrasada. Esse trecho ficou de fora.")
@@ -217,21 +245,67 @@ class DebateListener:
         self._flush_turn()
         self._set_state(False, None, "")
 
+    def hearing(self) -> str:
+        with self.lock:
+            return self.pending_text
+
     def _browser_loop(self) -> None:
-        while not self.audio_stop.is_set():
-            try:
-                path = self.browser_queue.get(timeout=0.4)
-            except queue.Empty:
-                continue
-            mp3 = path.with_suffix(".mp3")
-            try:
-                _webm_to_mp3(path, mp3)
-                self._transcribe_file(mp3)
-            except Exception as exc:
-                self._set_state(None, None, f"aba: {exc}")
-                mp3.unlink(missing_ok=True)
-            finally:
-                path.unlink(missing_ok=True)
+        pool = ThreadPoolExecutor(max_workers=3, thread_name_prefix="aba")
+        inflight: list[tuple[int, Future]] = []
+        try:
+            while not self.audio_stop.is_set() or inflight or not self.browser_queue.empty():
+                while len(inflight) < 3:
+                    try:
+                        item = self.browser_queue.get_nowait()
+                    except queue.Empty:
+                        break
+                    seq, path = item
+                    inflight.append((seq, pool.submit(self._read_browser_chunk, path)))
+                inflight.sort(key=lambda item: item[0])
+                if not inflight or not inflight[0][1].done():
+                    if self.audio_stop.is_set() and not inflight and self.browser_queue.empty():
+                        break
+                    time.sleep(0.05)
+                    continue
+                _seq, future = inflight.pop(0)
+                try:
+                    text = future.result()
+                except Exception as exc:
+                    self._set_state(None, None, f"aba: {exc}")
+                    continue
+                self._accept_browser_text(text)
+        finally:
+            pool.shutdown(wait=False, cancel_futures=True)
+            self._flush_turn()
+
+    def _read_browser_chunk(self, path: Path) -> str:
+        mp3 = path.with_suffix(".mp3")
+        try:
+            if path.suffix == ".wav":
+                try:
+                    return transcribe_audio(path, "wav")
+                except Exception:
+                    _webm_to_mp3(path, mp3)
+                    return transcribe_audio(mp3, "mp3")
+            _webm_to_mp3(path, mp3)
+            return transcribe_audio(mp3, "mp3")
+        finally:
+            path.unlink(missing_ok=True)
+            mp3.unlink(missing_ok=True)
+
+    def _accept_browser_text(self, text: str) -> None:
+        cleaned = strip_overlap(self._browser_tail, " ".join(text.split()))
+        folded = cleaned.casefold().strip()
+        if len(folded) < 2 or any(noise in folded for noise in NOISE):
+            return
+        with self.lock:
+            self._browser_tail = cleaned
+            self.pending_text = f"{self.pending_text} {cleaned}".strip()
+            size = len(self.pending_text)
+            ended = self.pending_text.endswith((".", "!", "?", "…"))
+            ready = size >= 240 or (size >= 80 and ended)
+        if ready:
+            self._flush_turn()
 
     def preview(self) -> list[dict]:
         with self.lock:
@@ -443,9 +517,17 @@ class DebateListener:
             db.add(Segment(text=text, debate_id=state.active_debate_id if state else None))
             db.commit()
         self.context = (self.context + "\n" + text)[-8000:]
-        self._enqueue_from_context()
+        threading.Thread(target=self._enqueue_from_context, daemon=True).start()
 
     def _enqueue_from_context(self) -> None:
+        if not self._extract_lock.acquire(blocking=False):
+            return
+        try:
+            self._extract_now()
+        finally:
+            self._extract_lock.release()
+
+    def _extract_now(self) -> None:
         with session() as db:
             pending_n = db.scalar(
                 select(func.count()).select_from(Claim).where(
@@ -658,13 +740,13 @@ def _webm_to_mp3(src: Path, dest: Path) -> None:
         raise RuntimeError(detail or "ffmpeg não leu o áudio da aba")
 
 
-def transcribe_mp3(path: Path) -> str:
+def transcribe_audio(path: Path, audio_format: str = "mp3") -> str:
     payload = {
         "model": settings.stt_model,
         "language": "pt",
         "input_audio": {
             "data": base64.b64encode(path.read_bytes()).decode("ascii"),
-            "format": "mp3",
+            "format": audio_format,
         },
     }
     headers = {
@@ -681,6 +763,10 @@ def transcribe_mp3(path: Path) -> str:
         )
         response.raise_for_status()
         return str(response.json().get("text") or "").strip()
+
+
+def transcribe_mp3(path: Path) -> str:
+    return transcribe_audio(path, "mp3")
 
 
 def _drain(pipe, bucket: list[str]) -> None:

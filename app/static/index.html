@@ -342,37 +342,46 @@
         class CaptureProcessor extends AudioWorkletProcessor {
           constructor() {
             super();
-            this.parts = [];
-            this.count = 0;
-            this.limit = Math.floor(sampleRate * 8);
-            this.port.onmessage = () => this.flush();
+            this.step = sampleRate / 16000;
+            this.bucket = 0;
+            this.bucketN = 0;
+            this.fresh = [];
+            this.carry = [];
+            this.freshNeed = 16000 * 4;
+            this.overlap = Math.floor(16000 * 0.6);
+            this.port.onmessage = () => this.emit(true);
           }
-          flush() {
-            if (!this.count) return;
-            const merged = new Float32Array(this.count);
-            let offset = 0;
-            for (const part of this.parts) {
-              merged.set(part, offset);
-              offset += part.length;
-            }
-            this.parts = [];
-            this.count = 0;
-            this.port.postMessage(merged, [merged.buffer]);
+          pushSample(value) {
+            this.bucket += value;
+            this.bucketN += 1;
+            if (this.bucketN < this.step) return;
+            this.fresh.push(this.bucket / this.bucketN);
+            this.bucket = 0;
+            this.bucketN = 0;
+            if (this.fresh.length >= this.freshNeed) this.emit(false);
+          }
+          emit(force) {
+            if (!force && this.fresh.length < this.freshNeed) return;
+            if (force && this.fresh.length < 1600) return;
+            let energy = 0;
+            const chunk = this.carry.concat(this.fresh);
+            for (let i = 0; i < chunk.length; i++) energy += chunk[i] * chunk[i];
+            const keep = Math.min(this.overlap, this.fresh.length);
+            this.carry = this.fresh.slice(this.fresh.length - keep);
+            this.fresh = [];
+            if (chunk.length && energy / chunk.length < 0.00004) return;
+            this.port.postMessage(new Float32Array(chunk));
           }
           process(inputs) {
             const channels = inputs[0];
             if (!channels || !channels.length || !channels[0]) return true;
             const frames = channels[0].length;
-            const mixed = new Float32Array(frames);
-            for (let channel = 0; channel < channels.length; channel++) {
-              const data = channels[channel];
-              for (let i = 0; i < frames; i++) mixed[i] += data[i];
-            }
             const scale = 1 / channels.length;
-            for (let i = 0; i < frames; i++) mixed[i] *= scale;
-            this.parts.push(mixed);
-            this.count += frames;
-            if (this.count >= this.limit) this.flush();
+            for (let i = 0; i < frames; i++) {
+              let mixed = 0;
+              for (let channel = 0; channel < channels.length; channel++) mixed += channels[channel][i];
+              this.pushSample(mixed * scale);
+            }
             return true;
           }
         }
@@ -390,7 +399,7 @@
       silent.connect(context.destination);
       let chain = Promise.resolve();
       node.port.onmessage = (event) => {
-        const blob = wavBlob(event.data, context.sampleRate);
+        const blob = wavBlob(event.data, 16000);
         chain = chain.then(() => sendAudio(blob, stop)).catch((error) => {
           errorBox.dataset.note = error.message || "O trecho da aba não entrou.";
           errorBox.textContent = errorBox.dataset.note;
@@ -646,7 +655,11 @@
       latestSegments = state.persist === false ? (state.ephemeral || []) : (state.segments || []);
       const alive = new Set(latestSegments.map((row) => row.id));
       for (const id of [...marked]) if (!alive.has(id)) marked.delete(id);
-      document.querySelector("#segments").innerHTML = latestSegments.length
+      const hearing = (state.hearing || "").trim();
+      const live = hearing
+        ? `<article class="chunk"><p>${escapeHtml(hearing)}</p><span class="meta">entrando agora</span></article>`
+        : "";
+      const body = latestSegments.length
         ? latestSegments.map((row) => `<article class="chunk ${marked.has(row.id) ? "marked" : ""}">
             <div class="row">
               <input type="checkbox" data-mark="${row.id}" ${marked.has(row.id) ? "checked" : ""} aria-label="Marcar trecho">
@@ -657,7 +670,8 @@
               <span class="meta">${escapeHtml(formatWhen(row.created_at))}${row.parts > 1 ? ` · ${row.parts} trechos juntos` : ""}</span>
             </div>
           </article>`).join("")
-        : `<p class="meta">${state.persist === false ? "Os trechos de agora aparecem aqui e não entram no debate salvo." : "A transcrição aparece aqui, com o trecho mais novo no topo."}</p>`;
+        : (hearing ? "" : `<p class="meta">${state.persist === false ? "Os trechos de agora aparecem aqui e não entram no debate salvo." : "A transcrição aparece aqui, com o trecho mais novo no topo."}</p>`);
+      document.querySelector("#segments").innerHTML = live + body;
       updateCount();
       claimById = new Map((state.claims || []).map((claim) => [claim.id, claim]));
       document.querySelector("#claims").innerHTML = state.claims.length
@@ -718,7 +732,7 @@
       }
     }
 
-    setInterval(refresh, 3000);
+    setInterval(refresh, 1500);
     refresh();
   </script>
 </body>
