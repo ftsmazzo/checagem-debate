@@ -546,6 +546,31 @@ def criar_debate(body: DebateBody, request: Request) -> dict:
         return _debate_public(row, row.id)
 
 
+@app.post("/api/debates/{slug}/excluir")
+def excluir_debate(slug: str, request: Request) -> dict:
+    authorized(request)
+    if slug == FIRST_DEBATE_SLUG:
+        raise HTTPException(status_code=400, detail="o debate da Band fica")
+    with session() as db:
+        debate = db.scalars(select(Debate).where(Debate.slug == slug)).first()
+        if debate is None:
+            raise HTTPException(status_code=404, detail="debate não encontrado")
+        claim_ids = list(db.scalars(select(Claim.id).where(Claim.debate_id == debate.id)))
+        if claim_ids:
+            db.execute(delete(CorrectionReport).where(CorrectionReport.claim_id.in_(claim_ids)))
+        segments = db.execute(delete(Segment).where(Segment.debate_id == debate.id)).rowcount
+        claims = db.execute(delete(Claim).where(Claim.debate_id == debate.id)).rowcount
+        state = db.get(RunState, 1)
+        band = db.scalars(select(Debate).where(Debate.slug == FIRST_DEBATE_SLUG)).first()
+        if state and state.active_debate_id == debate.id:
+            state.active_debate_id = band.id if band else None
+            state.updated_at = utcnow()
+        title = debate.title
+        db.delete(debate)
+        db.commit()
+    return {"apagado": title, "trechos": int(segments or 0), "checagens": int(claims or 0)}
+
+
 @app.get("/api/debates/{slug}/placar")
 def placar(slug: str, request: Request) -> dict:
     authorized(request)
