@@ -39,7 +39,7 @@ from app.listener import (
     running_flag,
 )
 from app import ie_mcp
-from app.settings import settings
+from app.transcript import group_turns
 
 sessions: set[str] = set()
 STATIC = Path(__file__).parent / "static"
@@ -153,7 +153,18 @@ def estado(request: Request) -> dict:
     with session() as db:
         state = db.get(RunState, 1)
         segments_total = int(db.scalar(select(func.count()).select_from(Segment)) or 0)
-        segments = list(db.scalars(select(Segment).order_by(Segment.id.desc()).limit(80)))
+        recent = list(db.scalars(select(Segment).order_by(Segment.id.desc()).limit(240)))
+        recent.reverse()
+        segments = list(
+            reversed(
+                group_turns(
+                    [
+                        {"id": row.id, "text": row.text, "created_at": row.created_at}
+                        for row in recent
+                    ]
+                )[-24:]
+            )
+        )
         # Resolvidas primeiro (o usuário precisa ver o veredito), depois a fila.
         done = list(
             db.scalars(
@@ -251,9 +262,10 @@ def estado(request: Request) -> dict:
         },
         "segments": [
             {
-                "id": row.id,
-                "text": row.text,
-                "created_at": row.created_at.isoformat() if row.created_at else "",
+                "id": row["id"],
+                "text": row["text"],
+                "created_at": row["created_at"].isoformat() if row["created_at"] else "",
+                "parts": row["parts"],
             }
             for row in segments
         ],
@@ -328,24 +340,32 @@ def transcricao(
                 .limit(limit)
             )
         rows = list(db.scalars(query))
+    turns = group_turns(
+        [
+            {"id": row.id, "text": row.text, "created_at": row.created_at}
+            for row in rows
+        ]
+    )
     payload = {
         "total": total,
         "count": len(rows),
+        "turns": len(turns),
         "next_after_id": rows[-1].id if rows else after_id,
         "segments": [
             {
-                "id": row.id,
-                "text": row.text,
-                "created_at": row.created_at.isoformat() if row.created_at else "",
+                "id": turn["id"],
+                "text": turn["text"],
+                "created_at": turn["created_at"].isoformat() if turn["created_at"] else "",
+                "parts": turn["parts"],
             }
-            for row in rows
+            for turn in turns
         ],
-        "text": "\n".join(row.text for row in rows if row.text),
+        "text": "\n\n".join(turn["text"] for turn in turns),
     }
     if download:
         body = "\n\n".join(
-            f"[{row.created_at.isoformat() if row.created_at else ''}] {row.text}"
-            for row in rows
+            f"[{turn['created_at'].isoformat() if turn['created_at'] else ''}] {turn['text']}"
+            for turn in turns
         )
         return PlainTextResponse(
             body or "(transcrição vazia)",

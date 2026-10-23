@@ -189,7 +189,7 @@
       font-weight: 800;
       letter-spacing: -0.02em;
     }
-    .chunk, .claim { border-top: 1px solid var(--ie-line); padding: 12px 0; }
+    .chunk p { margin: 0; line-height: 1.6; max-width: 68ch; }
     .chunk:first-of-type, .claim:first-of-type { border-top: 0; }
     .chunk.marked {
       background: var(--ie-accent-soft);
@@ -519,7 +519,7 @@
       const totalSegs = state.segments_total || 0;
       document.querySelector("#segments-total").textContent = state.persist === false
         ? "Esta escuta fica só nesta tela. Parar ou reiniciar apaga esses trechos."
-        : (totalSegs ? `${totalSegs} trechos gravados no banco` : "Nenhum trecho gravado ainda");
+        : (totalSegs ? `${totalSegs} trechos no banco, agrupados em falas` : "Nenhum trecho gravado ainda");
       const gravar = document.querySelector("#gravar");
       if (document.activeElement !== gravar) gravar.value = state.persist === false ? "0" : "1";
       const download = document.querySelector("#download-transcript");
@@ -535,7 +535,7 @@
             </div>
             <div class="actions">
               <button type="button" class="ghost" data-check="${row.id}">Checar este trecho</button>
-              <span class="meta">${escapeHtml(formatWhen(row.created_at))}</span>
+              <span class="meta">${escapeHtml(formatWhen(row.created_at))}${row.parts > 1 ? ` · ${row.parts} trechos juntos` : ""}</span>
             </div>
           </article>`).join("")
         : `<p class="meta">${state.persist === false ? "Os trechos de agora aparecem aqui e não entram no debate salvo." : "A transcrição aparece aqui, com o trecho mais novo no topo."}</p>`;

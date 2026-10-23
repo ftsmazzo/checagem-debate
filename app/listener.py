@@ -138,6 +138,7 @@ class DebateListener:
         self.context = ""
         self.chunk_dir = Path("/tmp/debate-chunks")
         self.persist = True
+        self.pending_text = ""
         self.ephemeral: list[dict] = []
         self._ephemeral_seq = 0
 
@@ -152,6 +153,7 @@ class DebateListener:
             if alive:
                 return
             self.persist = persist
+            self.pending_text = ""
             if not persist:
                 self.ephemeral = []
             self.audio_stop.clear()
@@ -164,6 +166,7 @@ class DebateListener:
     def halt(self) -> None:
         self.audio_stop.set()
         self._kill()
+        self._flush_turn()
         self._set_state(False, None, "")
 
     def preview(self) -> list[dict]:
@@ -343,6 +346,20 @@ class DebateListener:
         folded = text.casefold().strip()
         if len(folded) < 8 or any(noise in folded for noise in NOISE):
             return
+        with self.lock:
+            self.pending_text = f"{self.pending_text} {text}".strip()
+            size = len(self.pending_text)
+            ended = self.pending_text.endswith((".", "!", "?"))
+            ready = size >= 700 or (size >= 400 and ended)
+        if ready:
+            self._flush_turn()
+
+    def _flush_turn(self) -> None:
+        with self.lock:
+            text = " ".join(self.pending_text.split())
+            self.pending_text = ""
+        if len(text) < 8:
+            return
         if not self.persist:
             with self.lock:
                 self._ephemeral_seq += 1
@@ -386,8 +403,8 @@ class DebateListener:
                 row = Claim(
                     quote=item["quote"],
                     normalized=item["claim"],
-                    fingerprint=_fingerprint(item["claim"]),
-                    speaker="lula",
+                    fingerprint=_fingerprint(item["speaker"] + ":" + item["claim"]),
+                    speaker=item["speaker"],
                     origin="live",
                     debate_id=debate_id,
                     status="pendente",

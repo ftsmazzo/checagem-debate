@@ -16,28 +16,26 @@ ALLOWED = {
 NEEDS_SOURCE = {"sustentado", "contradito", "exagerado"}
 
 DEBATE_RULES = """
-Regras do debate Band de 18/10/2026, mediado por Adriana Araújo e Eduardo Oinegue:
-- Bloco 1: cada mediador faz uma pergunta. Flávio responde primeiro (2 min). Confronto de 30 min, 15 para cada um. Lula pergunta primeiro.
-- Bloco 2: Adriana faz uma pergunta aos dois. Flávio responde primeiro (2 min). Confronto de 15 min. Flávio pergunta primeiro. Pergunta 1min30, resposta e tréplica 4 min, réplica 2 min.
-- Bloco 3: Eduardo faz a mesma pergunta aos dois. Lula responde primeiro (2 min). Confronto de 15 min. Lula pergunta primeiro, com os mesmos tempos do bloco 2.
-- Considerações finais: 2 min cada. Lula começa. Flávio encerra.
-Pergunta de Adriana ou Eduardo não é fala de candidato. Use o nome dito no áudio. Se o trecho não identificar Lula, não atribua a ele.
+Debate Lula × Flávio na TV Globo, 23/10/2026, às 21h20.
+Pergunta de mediador não é fala de candidato.
+Atribua lula só quando estiver claro que quem afirma é Luiz Inácio Lula da Silva.
+Atribua flavio só quando estiver claro que quem afirma é Flávio Bolsonaro.
+Se a autoria estiver ambígua, use incerto.
 """
 
 EXTRACT_SYSTEM = """Você extrai afirmações verificáveis de um trecho de debate presidencial em português.
 """ + DEBATE_RULES + """
 Responda só JSON neste formato:
-{"claims":[{"quote":"trecho curto ouvido","claim":"afirmação reescrita de forma checável","speaker":"lula|outro|incerto"}]}
+{"claims":[{"quote":"trecho curto ouvido","claim":"afirmação reescrita de forma checável","speaker":"lula|flavio|incerto"}]}
 
 Regras:
 - Entre só frase com fato checável: número, data, obra, lei, cargo, comparação quantitativa.
-- speaker=lula apenas quando o trecho deixa claro que quem afirma é Luiz Inácio Lula da Silva. Se a autoria estiver ambígua, use incerto.
-- Reescreva a claim com sujeito, verbo e número/periodo claros. Exemplo ruim: "fiz creches". Exemplo bom: "o governo Lula entregou 10 creches no Brasil".
+- Reescreva a claim com sujeito, verbo e número/periodo claros.
 - Não invente frase que não esteja no trecho.
 - Ignore opinião, ataque pessoal e pergunta de mediador.
 - Se não houver afirmação checável, devolva {"claims":[]}."""
 
-VERIFY_SYSTEM = """Você é um checador de fatos para o debate presidencial brasileiro de 18/10/2026.
+VERIFY_SYSTEM = """Você é um checador de fatos para o debate Lula × Flávio na TV Globo em 23/10/2026.
 """ + DEBATE_RULES + """
 Use a busca na web. Faça buscas adicionais se a primeira for vaga: número + período + definição do termo.
 Responda só JSON:
@@ -351,14 +349,14 @@ def extract_claims(transcript: str) -> list[dict]:
         if not isinstance(item, dict):
             continue
         speaker = str(item.get("speaker") or "incerto").strip().lower()
-        if speaker != "lula":
+        if speaker not in {"lula", "flavio"}:
             continue
         quote = str(item.get("quote") or "").strip()
         claim = str(item.get("claim") or "").strip()
         if len(claim) < 12 or len(quote) < 8:
             continue
-        found.append({"quote": quote[:500], "claim": claim[:400]})
-    return found[:2]
+        found.append({"quote": quote[:500], "claim": claim[:400], "speaker": speaker})
+    return found[:4]
 
 
 def _search_brief(quote: str, claim: str) -> dict:
