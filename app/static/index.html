@@ -134,7 +134,7 @@
     </form>
     <div id="app" hidden>
       <aside id="saved" class="saved"></aside>
-      <p class="lead">Ouça um link e leia o que foi dito. Para checar uma frase e copiar a resposta, use Checar. O placar fica separado.</p>
+      <p class="lead">No GloboPlay, deixe o debate tocando na outra aba e use Ouvir a aba. O Chrome pede essa aba e o áudio dela. A senha da Globo não entra aqui. Rádio e YouTube continuam no link.</p>
       <form id="controls" class="bar">
         <select id="fonte">
           <option value="bandnews_sp">BandNews FM SP</option>
@@ -150,6 +150,7 @@
         <span id="status" class="meta"></span>
       </form>
       <div class="tools">
+        <button id="aba" type="button" title="Escolha a aba do GloboPlay e marque compartilhar o áudio">Ouvir a aba do GloboPlay</button>
         <button id="new-debate" class="ghost" type="button">Criar o próximo debate</button>
         <button id="reset" class="ghost" type="button">Limpar só a fila</button>
       </div>
@@ -271,8 +272,113 @@
     });
 
     document.querySelector("#stop").addEventListener("click", async () => {
+      if (window.__abaParar) window.__abaParar();
       await api("/api/parar", { method: "POST" });
       await refresh();
+    });
+
+    function recordSlice(stream, mime, ms, shouldStop) {
+      return new Promise((resolve, reject) => {
+        let recorder;
+        try {
+          recorder = new MediaRecorder(stream, { mimeType: mime });
+        } catch (error) {
+          reject(error);
+          return;
+        }
+        const parts = [];
+        recorder.ondataavailable = (event) => {
+          if (event.data && event.data.size) parts.push(event.data);
+        };
+        const finish = () => resolve(new Blob(parts, { type: "audio/webm" }));
+        recorder.onerror = finish;
+        recorder.onstop = finish;
+        recorder.start();
+        const started = Date.now();
+        const timer = setInterval(() => {
+          if (recorder.state === "inactive") {
+            clearInterval(timer);
+            return;
+          }
+          if (shouldStop() || Date.now() - started >= ms) {
+            clearInterval(timer);
+            recorder.stop();
+          }
+        }, 250);
+      });
+    }
+
+    document.querySelector("#aba").addEventListener("click", async () => {
+      delete errorBox.dataset.note;
+      errorBox.textContent = "";
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+        errorBox.dataset.note = "Este navegador não compartilha o áudio da aba. Abra o painel no Chrome.";
+        errorBox.textContent = errorBox.dataset.note;
+        return;
+      }
+      let capture;
+      try {
+        await api("/api/aba/iniciar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ gravar: document.querySelector("#gravar").value === "1" })
+        });
+        capture = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+      } catch (error) {
+        await api("/api/parar", { method: "POST" }).catch(() => {});
+        errorBox.dataset.note = error.name === "NotAllowedError"
+          ? "A aba não foi compartilhada."
+          : (error.message || "Não foi possível ouvir a aba.");
+        errorBox.textContent = errorBox.dataset.note;
+        return;
+      }
+      if (!capture.getAudioTracks().length) {
+        capture.getTracks().forEach((track) => track.stop());
+        await api("/api/parar", { method: "POST" }).catch(() => {});
+        errorBox.dataset.note = "Escolha a aba do GloboPlay e marque compartilhar o áudio.";
+        errorBox.textContent = errorBox.dataset.note;
+        return;
+      }
+      const stream = new MediaStream(capture.getAudioTracks());
+      let stopped = false;
+      window.__abaParar = () => { stopped = true; };
+      capture.getVideoTracks().forEach((track) => {
+        track.addEventListener("ended", () => { stopped = true; });
+      });
+      const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : "audio/webm";
+      try {
+        while (!stopped) {
+          const blob = await recordSlice(stream, mime, 12000, () => stopped);
+          if (stopped || !blob || blob.size < 800) continue;
+          const response = await fetch("/api/aba", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "audio/webm" },
+            body: blob
+          });
+          if (response.status === 401) {
+            stopped = true;
+            errorBox.dataset.note = "faça login";
+            break;
+          }
+          if (!response.ok && !stopped) {
+            const data = await response.json().catch(() => ({}));
+            errorBox.dataset.note = data.detail || "O trecho da aba não entrou.";
+            errorBox.textContent = errorBox.dataset.note;
+          }
+        }
+      } catch (error) {
+        errorBox.dataset.note = error.message || "A escuta da aba parou.";
+        errorBox.textContent = errorBox.dataset.note;
+      } finally {
+        capture.getTracks().forEach((track) => track.stop());
+        stream.getTracks().forEach((track) => track.stop());
+        window.__abaParar = null;
+        await api("/api/parar", { method: "POST" }).catch(() => {});
+        await refresh();
+      }
     });
 
     document.querySelector("#reset").addEventListener("click", async () => {
@@ -421,7 +527,11 @@
       } else {
         saved.hidden = true;
       }
-      const listening = state.running ? "Ouvindo agora" : "Escuta parada";
+      const listening = state.browser
+        ? "Ouvindo a aba do GloboPlay"
+        : state.running
+          ? "Ouvindo agora"
+          : "Escuta parada";
       const where = state.active_debate ? ` Novos trechos entram em ${state.active_debate.title}.` : "";
       const q = state.queue || {};
       const fila = (q.manuais || q.ao_vivo)
@@ -434,7 +544,14 @@
           ? " Inteligência Eleitoral ligada."
           : " Inteligência Eleitoral sem resposta agora.";
       document.querySelector("#status").textContent = listening + "." + where + fila + ieText;
-      errorBox.textContent = state.last_error || "";
+      if (state.last_error) {
+        delete errorBox.dataset.note;
+        errorBox.textContent = state.last_error;
+      } else if (errorBox.dataset.note) {
+        errorBox.textContent = errorBox.dataset.note;
+      } else {
+        errorBox.textContent = "";
+      }
       const totalSegs = state.segments_total || 0;
       document.querySelector("#segments-total").textContent = state.persist === false
         ? "Esta escuta fica só nesta tela. Parar ou reiniciar apaga esses trechos."

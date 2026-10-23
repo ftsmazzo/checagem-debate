@@ -138,6 +138,11 @@ class VerdictTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             resolve_stream("https://evil.example/audio")
 
+    def test_globoplay_pede_a_aba(self):
+        with self.assertRaises(ValueError) as caught:
+            resolve_stream("https://globoplay.globo.com/ao-vivo/globo")
+        self.assertIn("aba", str(caught.exception).casefold())
+
 
 if __name__ == "__main__":
     unittest.main()

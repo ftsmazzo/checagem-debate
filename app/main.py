@@ -85,6 +85,10 @@ class StartBody(BaseModel):
     gravar: bool = True
 
 
+class AbaStartBody(BaseModel):
+    gravar: bool = True
+
+
 class ManualBody(BaseModel):
     text: str = Field(min_length=12, max_length=4000)
     speaker: str = Field(default="avulsa", max_length=16)
@@ -247,6 +251,7 @@ def estado(request: Request) -> dict:
         "segments_total": segments_total,
         "reports": reports,
         "persist": get_listener().persist,
+        "browser": get_listener().browser_on,
         "ephemeral": get_listener().preview(),
         "active_debate": active,
         "archive": None
@@ -280,6 +285,29 @@ def iniciar(body: StartBody, request: Request) -> dict:
     try:
         url = resolve_stream(body.youtube_url or settings.youtube_default)
         get_listener().start(url, persist=body.gravar)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True}
+
+
+@app.post("/api/aba/iniciar")
+def aba_iniciar(body: AbaStartBody, request: Request) -> dict:
+    authorized(request)
+    try:
+        get_listener().begin_browser(persist=body.gravar)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True}
+
+
+@app.post("/api/aba")
+async def aba_audio(request: Request) -> dict:
+    authorized(request)
+    data = await request.body()
+    if len(data) < 800 or len(data) > 3_000_000:
+        raise HTTPException(status_code=400, detail="trecho de áudio vazio ou grande demais")
+    try:
+        get_listener().ingest_browser(data)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"ok": True}

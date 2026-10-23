@@ -2,6 +2,7 @@ import base64
 import hashlib
 import json
 import os
+import queue
 import re
 import subprocess
 import threading
@@ -49,6 +50,10 @@ def resolve_stream(url: str) -> str:
     host = (parsed.hostname or "").lower()
     if parsed.scheme not in {"http", "https"}:
         raise ValueError("use um link https")
+    if "globo" in host:
+        raise ValueError(
+            "O GloboPlay não abre por link. Deixe o debate tocando e use Ouvir a aba do GloboPlay."
+        )
     if host in STREAM_HOSTS or host.endswith(".streamtheworld.com") or cleaned.endswith(".m3u8") or ".m3u8?" in cleaned:
         return cleaned
     if host in YOUTUBE_HOSTS:
@@ -141,12 +146,17 @@ class DebateListener:
         self.pending_text = ""
         self.ephemeral: list[dict] = []
         self._ephemeral_seq = 0
+        self.browser_on = False
+        self.browser_thread: threading.Thread | None = None
+        self.browser_queue: queue.Queue[Path] = queue.Queue(maxsize=8)
 
     def start(self, url: str, persist: bool = True) -> None:
         url = resolve_stream(url)
         if not settings.openrouter_key:
             raise RuntimeError("OPENROUTER_API_KEY ausente no serviço")
         with self.lock:
+            if self.browser_on:
+                raise RuntimeError("Pare a escuta da aba antes de ouvir um link.")
             alive = self.audio_thread and self.audio_thread.is_alive()
             if alive and self.persist != persist:
                 raise RuntimeError("Pare a escuta antes de trocar entre gravar e só ouvir.")
@@ -163,11 +173,60 @@ class DebateListener:
         # Fora do lock: ensure_checker também usa self.lock (Lock não é reentrante).
         self.ensure_checker()
 
+    def begin_browser(self, persist: bool = True) -> None:
+        if not settings.openrouter_key:
+            raise RuntimeError("OPENROUTER_API_KEY ausente no serviço")
+        with self.lock:
+            if self.audio_thread and self.audio_thread.is_alive():
+                raise RuntimeError("Pare a escuta do link antes de ouvir a aba.")
+            if self.browser_on and self.browser_thread and self.browser_thread.is_alive():
+                self.persist = persist
+                return
+            self.persist = persist
+            self.pending_text = ""
+            if not persist:
+                self.ephemeral = []
+            self.browser_on = True
+            self.audio_stop.clear()
+            self.browser_thread = threading.Thread(target=self._browser_loop, daemon=True)
+            self.browser_thread.start()
+        self._set_state(True, None, "")
+        self.ensure_checker()
+
+    def ingest_browser(self, data: bytes) -> None:
+        if not self.browser_on:
+            raise RuntimeError("A escuta da aba não está ligada.")
+        self.chunk_dir.mkdir(parents=True, exist_ok=True)
+        path = self.chunk_dir / f"aba-{time.time_ns()}.webm"
+        path.write_bytes(data)
+        try:
+            self.browser_queue.put_nowait(path)
+        except queue.Full:
+            path.unlink(missing_ok=True)
+            raise RuntimeError("A transcrição da aba está atrasada. Esse trecho ficou de fora.")
+
     def halt(self) -> None:
         self.audio_stop.set()
+        self.browser_on = False
         self._kill()
         self._flush_turn()
         self._set_state(False, None, "")
+
+    def _browser_loop(self) -> None:
+        while not self.audio_stop.is_set():
+            try:
+                path = self.browser_queue.get(timeout=0.4)
+            except queue.Empty:
+                continue
+            mp3 = path.with_suffix(".mp3")
+            try:
+                _webm_to_mp3(path, mp3)
+                self._transcribe_file(mp3)
+            except Exception as exc:
+                self._set_state(None, None, f"aba: {exc}")
+                mp3.unlink(missing_ok=True)
+            finally:
+                path.unlink(missing_ok=True)
 
     def preview(self) -> list[dict]:
         with self.lock:
@@ -563,6 +622,35 @@ def collapse_pending_queue() -> dict:
         db.commit()
     _ensure_checker()
     return {"kept": kept, "dropped": dropped}
+
+
+def _webm_to_mp3(src: Path, dest: Path) -> None:
+    result = subprocess.run(
+        [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            str(src),
+            "-vn",
+            "-ac",
+            "1",
+            "-ar",
+            "16000",
+            "-c:a",
+            "libmp3lame",
+            "-b:a",
+            "64k",
+            str(dest),
+        ],
+        capture_output=True,
+        timeout=40,
+    )
+    if result.returncode != 0 or not dest.is_file() or dest.stat().st_size < 400:
+        detail = result.stderr.decode("utf-8", "replace")[-300:]
+        raise RuntimeError(detail or "ffmpeg não leu o áudio da aba")
 
 
 def transcribe_mp3(path: Path) -> str:
