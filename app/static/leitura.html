@@ -235,12 +235,15 @@
       const correction = claim.correction
         ? `<p class="fix"><strong>"CORREÇÃO"</strong> ${escapeHtml(claim.correction)}</p>`
         : "";
+      const person = who[claim.speaker] || claim.speaker;
+      const topic = themes[claim.theme] || "";
+      const whoLine = topic ? `${person} · ${topic}` : person;
       const tie = live ? `<p class="tie">AO VIVO</p>` : "";
       const title = live ? "h1" : "h2";
       return `<article class="fala">
         ${tie}
         <${title} class="q">${escapeHtml(claim.normalized || claim.quote)}</${title}>
-        <p class="who">${escapeHtml(who[claim.speaker] || claim.speaker)} · ${escapeHtml(themes[claim.theme] || "")}</p>
+        <p class="who">${escapeHtml(whoLine)}</p>
         <p class="stamp">${escapeHtml(labels[claim.status] || claim.status)}</p>
         <p class="sum">${escapeHtml(claim.summary || "")}</p>
         ${claim.missing ? `<p class="miss">${escapeHtml(claim.missing)}</p>` : ""}
