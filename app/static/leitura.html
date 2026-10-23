@@ -5,55 +5,179 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Leitura · Mentirômetro</title>
   <link rel="icon" type="image/png" href="/static/logo-ie.png">
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap" rel="stylesheet">
   <style>
+    @font-face {
+      font-family: "Archivo Black";
+      src: url("/static/fonts/archivo-black.ttf") format("truetype");
+      font-weight: 400;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: "Literata";
+      src: url("/static/fonts/literata-500.ttf") format("truetype");
+      font-weight: 500;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: "Literata";
+      src: url("/static/fonts/literata-700.ttf") format("truetype");
+      font-weight: 700;
+      font-display: swap;
+    }
     :root {
-      --bg: #0f141c; --surface: #1a222f; --ink: #f2f4f8; --muted: #9aa6b8;
-      --line: #2c3648; --coral: #e8786a; --ok: #3dce8f; --warn: #e0a43a; --bad: #ff6b6b;
+      --cotton: #f4f4f2;
+      --ink: #111111;
+      --tie: #ff5a1f;
+      --plate: #ffffff;
     }
     * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--ink); font-family: Montserrat, system-ui, sans-serif; }
-    header, main { width: min(880px, calc(100% - 28px)); margin: 0 auto; }
-    header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 28px 0 8px; flex-wrap: wrap; }
-    h1 { margin: 0; font-size: 1.6rem; }
-    .kicker { margin: 0 0 4px; color: var(--coral); font-weight: 700; }
-    .nav { display: flex; gap: 8px; flex-wrap: wrap; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--cotton);
+      color: var(--ink);
+      font-family: Literata, Georgia, serif;
+      font-weight: 500;
+      font-size: 1.05rem;
+      line-height: 1.55;
+    }
+    ::selection { background: var(--tie); color: var(--ink); }
+    :focus-visible { outline: 3px solid var(--tie); outline-offset: 3px; }
+    ::-webkit-scrollbar { width: 12px; height: 12px; }
+    ::-webkit-scrollbar-thumb { background: var(--ink); }
+    ::-webkit-scrollbar-track { background: var(--cotton); }
+    .stripe {
+      height: 72px;
+      background: repeating-linear-gradient(45deg, #111 0 16px, #ff5a1f 16px 32px);
+    }
+    .bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      padding: 22px 40px 8px;
+    }
+    .nav, .filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .nav a, select, button, textarea {
+      font-family: "Archivo Black", sans-serif;
+      letter-spacing: 0.04em;
+      border: 2px solid var(--ink);
+      border-radius: 0;
+      background: var(--plate);
+      color: var(--ink);
+      min-height: 48px;
+    }
     .nav a {
-      display: inline-flex; align-items: center; min-height: 42px; padding: 0 16px;
-      border-radius: 999px; border: 1px solid var(--line); background: var(--surface);
-      color: var(--ink); font-weight: 800; text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 14px;
+      text-decoration: none;
+      text-transform: uppercase;
     }
-    .nav a.here { background: var(--coral); border-color: transparent; color: #fff; }
-    .lead, .meta { color: var(--muted); }
-    .filters, article, form.erro {
-      background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px;
+    .nav a::before { content: '"'; }
+    .nav a::after { content: '"'; }
+    .nav a.here, .nav a:hover, button:hover, select:hover {
+      background: var(--ink);
+      color: var(--cotton);
     }
-    .filters { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
-    select, textarea, button { font: inherit; border-radius: 10px; border: 1px solid var(--line); background: #222b3a; color: var(--ink); padding: 10px 12px; }
-    button { background: var(--coral); color: #1a1010; font-weight: 800; cursor: pointer; }
-    article { margin-top: 12px; }
-    article p { line-height: 1.55; }
-    .chip { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; }
-    .sustentado, .sustentado_ressalva { color: var(--ok); }
-    .exagerado, .nao_e_bem_assim, .promessa { color: var(--warn); }
-    .contradito, .distorcido, .sem_prova { color: var(--bad); }
-    a { color: var(--coral); }
-    .correction { border-left: 3px solid var(--coral); padding-left: 10px; }
+    select, button { padding: 0 14px; cursor: pointer; }
+    button { background: var(--ink); color: var(--cotton); }
+    button:hover { background: var(--tie); color: var(--ink); }
+    select { appearance: none; padding-right: 28px; }
+    main { padding: 8px 40px 64px; }
+    .fala { max-width: 74ch; margin: 36px 0 0; }
+    .fala + .fala { margin-top: 56px; }
+    .q {
+      font-family: "Archivo Black", sans-serif;
+      font-weight: 400;
+      letter-spacing: -0.03em;
+      line-height: 0.98;
+      margin: 0 0 14px;
+      max-width: 18ch;
+    }
+    .fala:first-child .q { font-size: clamp(2.4rem, 5vw, 3.6rem); }
+    .fala:not(:first-child) .q { font-size: clamp(1.6rem, 3vw, 2.2rem); }
+    .q::before, .q::after { content: '"'; }
+    .tie {
+      display: inline-block;
+      margin: 0 0 16px;
+      padding: 6px 10px;
+      background: var(--tie);
+      color: var(--ink);
+      font-family: "Archivo Black", sans-serif;
+      letter-spacing: 0.06em;
+      transform-origin: top center;
+      animation: swing 0.7s cubic-bezier(0.16, 1, 0.3, 1) 1;
+    }
+    .tie::before { content: '"'; }
+    .tie::after { content: '"'; }
+    @keyframes swing {
+      0% { transform: rotate(0deg); }
+      35% { transform: rotate(-8deg); }
+      100% { transform: rotate(0deg); }
+    }
+    .who, .stamp, .kind {
+      font-family: "Archivo Black", sans-serif;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .who { margin: 0 0 8px; }
+    .stamp { margin: 18px 0 8px; font-size: 1.15rem; }
+    .stamp::before { content: '"'; }
+    .stamp::after { content: '"'; }
+    .sum, .miss { margin: 0 0 12px; max-width: 70ch; }
+    .miss { color: #3a3a3a; }
+    ul { margin: 12px 0 0; padding: 0; list-style: none; }
+    li { margin: 0 0 14px; max-width: 70ch; }
+    a { color: var(--ink); text-underline-offset: 4px; }
+    a:hover { background: var(--tie); }
+    .fix { margin: 16px 0; max-width: 70ch; }
+    .fix strong {
+      display: inline-block;
+      margin-right: 8px;
+      padding: 2px 6px;
+      background: var(--ink);
+      color: var(--cotton);
+      font-family: "Archivo Black", sans-serif;
+      font-weight: 400;
+    }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+    form.erro { display: grid; gap: 8px; max-width: 70ch; margin-top: 8px; }
+    textarea {
+      min-height: 96px;
+      padding: 12px;
+      font-family: Literata, Georgia, serif;
+      font-weight: 500;
+      letter-spacing: 0;
+      font-size: 1rem;
+      resize: vertical;
+    }
+    #error:not(:empty) {
+      display: inline-block;
+      margin: 12px 0 0;
+      padding: 8px 12px;
+      background: var(--tie);
+      font-family: "Archivo Black", sans-serif;
+    }
+    .empty { font-family: "Archivo Black", sans-serif; font-size: clamp(2rem, 4vw, 3rem); max-width: 16ch; line-height: 0.98; }
+    @media (max-width: 720px) {
+      .stripe { height: 48px; }
+      .bar, main { padding-left: 16px; padding-right: 16px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .tie { animation: none; }
+    }
   </style>
 </head>
 <body>
-  <header>
-    <div>
-      <p class="kicker">IEleitoral</p>
-      <h1>Mentirômetro</h1>
-    </div>
+  <div class="stripe" aria-hidden="true"></div>
+  <div class="bar">
     <nav class="nav" aria-label="Seções">
+      <a href="/leitura">Mentirômetro</a>
       <a class="here" href="/leitura">Leitura</a>
       <a href="/metodo">Método</a>
     </nav>
-  </header>
-  <main>
-    <p class="lead">Fala, carimbo, contexto e fonte. A escuta fica no painel.</p>
     <div class="filters">
       <select id="speaker" aria-label="Candidato">
         <option value="">Os dois</option>
@@ -67,7 +191,9 @@
         <option value="">Todos os temas</option>
       </select>
     </div>
-    <p id="error" class="meta"></p>
+  </div>
+  <main>
+    <p id="error" role="status"></p>
     <div id="list"></div>
   </main>
   <script src="/static/card.js"></script>
@@ -102,28 +228,31 @@
       select.value = current;
     }
 
-    function card(claim) {
+    function card(claim, live) {
       const sources = (claim.sources || []).map((source) =>
-        `<li><span class="meta">${escapeHtml(source.kind || "")}</span> <a href="${escapeHtml(source.url)}" target="_blank" rel="noopener">${escapeHtml(source.title || "fonte")}</a><br>${escapeHtml(source.excerpt || source.note || "")}</li>`
+        `<li><span class="kind">"${escapeHtml(source.kind || "fonte")}"</span> <a href="${escapeHtml(source.url)}" target="_blank" rel="noopener">${escapeHtml(source.title || "página")}</a><br>${escapeHtml(source.excerpt || source.note || "")}</li>`
       ).join("");
       const correction = claim.correction
-        ? `<p class="correction"><strong>Correção.</strong> ${escapeHtml(claim.correction)}</p>`
+        ? `<p class="fix"><strong>"CORREÇÃO"</strong> ${escapeHtml(claim.correction)}</p>`
         : "";
-      return `<article>
-        <span class="chip ${escapeHtml(claim.status)}">${escapeHtml(labels[claim.status] || claim.status)}</span>
-        <span class="meta">${escapeHtml(who[claim.speaker] || claim.speaker)} · ${escapeHtml(themes[claim.theme] || "")}</span>
-        <p><strong>${escapeHtml(claim.normalized || claim.quote)}</strong></p>
-        <p>${escapeHtml(claim.summary || "")}</p>
-        ${claim.missing ? `<p class="meta">${escapeHtml(claim.missing)}</p>` : ""}
+      const tie = live ? `<p class="tie">AO VIVO</p>` : "";
+      const title = live ? "h1" : "h2";
+      return `<article class="fala">
+        ${tie}
+        <${title} class="q">${escapeHtml(claim.normalized || claim.quote)}</${title}>
+        <p class="who">${escapeHtml(who[claim.speaker] || claim.speaker)} · ${escapeHtml(themes[claim.theme] || "")}</p>
+        <p class="stamp">${escapeHtml(labels[claim.status] || claim.status)}</p>
+        <p class="sum">${escapeHtml(claim.summary || "")}</p>
+        ${claim.missing ? `<p class="miss">${escapeHtml(claim.missing)}</p>` : ""}
         ${sources ? `<ul>${sources}</ul>` : ""}
         ${correction}
-        <p>
+        <p class="actions">
           <button type="button" data-card="feed" data-id="${claim.id}">Imagem</button>
           <button type="button" data-card="stories" data-id="${claim.id}">Stories</button>
         </p>
         <form class="erro" data-erro="${claim.id}">
           <textarea name="note" minlength="8" maxlength="500" required placeholder="Achei um erro. Diga o que está errado."></textarea>
-          <button type="submit">Achei um erro</button>
+          <button type="submit">Enviar o aviso</button>
         </form>
       </article>`;
     }
@@ -141,11 +270,11 @@
       }
       const response = await fetch("/api/publico?" + params.toString());
       const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || "falha na leitura");
+      if (!response.ok) throw new Error(data.detail || "A leitura não respondeu. Tente de novo.");
       claims = data.claims || [];
       document.querySelector("#list").innerHTML = claims.length
-        ? claims.map(card).join("")
-        : `<p class="meta">Nenhuma checagem publicada com esse filtro.</p>`;
+        ? claims.map((claim, index) => card(claim, index === 0)).join("")
+        : `<p class="empty">"Nenhuma checagem com esse filtro."</p>`;
     }
 
     document.querySelector("#list").addEventListener("click", (event) => {
@@ -167,9 +296,9 @@
           body: JSON.stringify({ claim_id: Number(form.dataset.erro), note: form.note.value })
         });
         const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.detail || "não foi possível enviar");
+        if (!response.ok) throw new Error(data.detail || "O aviso não saiu. Escreva de novo e envie.");
         form.reset();
-        errorBox.textContent = "Recebido. A correção entra no card quando o painel publicar.";
+        errorBox.textContent = "Recebido. A correção entra na frase quando o painel publicar.";
       } catch (error) {
         errorBox.textContent = error.message;
       }

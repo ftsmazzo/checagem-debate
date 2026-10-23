@@ -5,41 +5,47 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Método · Mentirômetro</title>
   <link rel="icon" type="image/png" href="/static/logo-ie.png">
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --bg: #0f141c; --surface: #1a222f; --ink: #f2f4f8; --muted: #9aa6b8;
-      --line: #2c3648; --coral: #e8786a;
-    }
+    @font-face { font-family: "Archivo Black"; src: url("/static/fonts/archivo-black.ttf") format("truetype"); font-weight: 400; font-display: swap; }
+    @font-face { font-family: "Literata"; src: url("/static/fonts/literata-500.ttf") format("truetype"); font-weight: 500; font-display: swap; }
+    @font-face { font-family: "Literata"; src: url("/static/fonts/literata-700.ttf") format("truetype"); font-weight: 700; font-display: swap; }
+    :root { --cotton: #f4f4f2; --ink: #111; --tie: #ff5a1f; }
     * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--ink); font-family: Montserrat, system-ui, sans-serif; }
-    header, main { width: min(760px, calc(100% - 28px)); margin: 0 auto; }
-    header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 28px 0 8px; flex-wrap: wrap; }
-    h1 { margin: 0; font-size: 1.6rem; }
-    h2 { font-size: 1rem; margin: 22px 0 8px; }
-    .kicker { margin: 0 0 4px; color: var(--coral); font-weight: 700; }
-    p, li { line-height: 1.6; color: #d5dde8; }
-    .nav { display: flex; gap: 8px; flex-wrap: wrap; }
+    body { margin: 0; background: var(--cotton); color: var(--ink); font-family: Literata, Georgia, serif; font-size: 1.05rem; line-height: 1.6; }
+    ::selection { background: var(--tie); color: var(--ink); }
+    :focus-visible { outline: 3px solid var(--tie); outline-offset: 3px; }
+    .stripe { height: 72px; background: repeating-linear-gradient(45deg, #111 0 16px, #ff5a1f 16px 32px); }
+    .bar { display: flex; gap: 10px; flex-wrap: wrap; padding: 22px 40px 0; }
     .nav a {
-      display: inline-flex; align-items: center; min-height: 42px; padding: 0 16px;
-      border-radius: 999px; border: 1px solid var(--line); background: var(--surface);
-      color: var(--ink); font-weight: 800; text-decoration: none;
+      display: inline-flex; align-items: center; min-height: 48px; padding: 0 14px;
+      border: 2px solid var(--ink); background: #fff; color: var(--ink);
+      font-family: "Archivo Black", sans-serif; letter-spacing: 0.04em; text-decoration: none; text-transform: uppercase;
     }
-    .nav a.here { background: var(--coral); border-color: transparent; color: #fff; }
+    .nav a::before { content: '"'; }
+    .nav a::after { content: '"'; }
+    .nav a.here, .nav a:hover { background: var(--ink); color: var(--cotton); }
+    main { max-width: 70ch; padding: 28px 40px 72px; }
+    h1 { font-family: "Archivo Black", sans-serif; font-size: clamp(2.6rem, 6vw, 4rem); line-height: 0.95; letter-spacing: -0.03em; margin: 28px 0 18px; max-width: 12ch; }
+    h1::before, h1::after { content: '"'; }
+    h2 { font-family: "Archivo Black", sans-serif; font-size: 1.4rem; letter-spacing: 0.03em; text-transform: uppercase; margin: 2.2rem 0 0.6rem; }
+    h2::before { content: '"'; }
+    h2::after { content: '"'; }
+    p, li { max-width: 70ch; }
+    a { color: var(--ink); }
+    @media (max-width: 720px) { .stripe { height: 48px; } .bar, main { padding-left: 16px; padding-right: 16px; } }
   </style>
 </head>
 <body>
-  <header>
-    <div>
-      <p class="kicker">IEleitoral</p>
-      <h1>Método</h1>
-    </div>
+  <div class="stripe" aria-hidden="true"></div>
+  <div class="bar">
     <nav class="nav" aria-label="Seções">
+      <a href="/leitura">Mentirômetro</a>
       <a href="/leitura">Leitura</a>
       <a class="here" href="/metodo">Método</a>
     </nav>
-  </header>
+  </div>
   <main>
+    <h1>Método</h1>
     <p>O Mentirômetro acompanha a fala enquanto ela está no ar. Cada checagem mostra o carimbo, o contexto e a fonte. Não há nota de quem ganhou o debate.</p>
     <h2>Carimbo fechado</h2>
     <p>Só permanece com pelo menos uma página https.</p>
