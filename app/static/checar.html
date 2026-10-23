@@ -68,6 +68,7 @@
       <div id="answers"></div>
     </div>
   </main>
+  <script src="/static/card.js"></script>
   <script>
     const labels = {
       pendente: "Checando", processando: "Checando", sustentado: "Com fonte a favor",
@@ -107,7 +108,11 @@
             ).join("");
             return `<article>
               <div class="row"><strong>${escapeHtml(labels[claim.status] || claim.status)}</strong>
-                <button type="button" class="ghost" data-copy="${claim.id}">Copiar resposta</button></div>
+                <span>
+                  <button type="button" class="ghost" data-copy="${claim.id}">Copiar</button>
+                  <button type="button" class="ghost" data-card="feed" data-id="${claim.id}">Imagem</button>
+                  <button type="button" class="ghost" data-card="stories" data-id="${claim.id}">Stories</button>
+                </span></div>
               <p><strong>${escapeHtml(claim.normalized || claim.quote)}</strong></p>
               <p>${escapeHtml(claim.summary || "")}</p>
               ${sources ? `<ul>${sources}</ul>` : ""}
@@ -151,6 +156,12 @@
     });
 
     document.querySelector("#answers").addEventListener("click", async (event) => {
+      const imageButton = event.target.closest("[data-card]");
+      if (imageButton) {
+        const claim = claimById.get(Number(imageButton.dataset.id));
+        if (claim) MentiroCard.png(claim, imageButton.dataset.card);
+        return;
+      }
       const button = event.target.closest("[data-copy]");
       if (!button) return;
       const claim = claimById.get(Number(button.dataset.copy));

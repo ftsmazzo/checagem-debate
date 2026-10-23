@@ -298,6 +298,7 @@
       </div>
     </div>
   </main>
+  <script src="/static/card.js"></script>
   <script>
     const labels = {
       pendente: "Checando",
@@ -441,6 +442,12 @@
     });
 
     document.querySelector("#claims").addEventListener("click", async (event) => {
+      const imageButton = event.target.closest("[data-card]");
+      if (imageButton) {
+        const claim = claimById.get(Number(imageButton.dataset.id));
+        if (claim) MentiroCard.png(claim, imageButton.dataset.card);
+        return;
+      }
       const button = event.target.closest("[data-copy]");
       if (!button) return;
       const claim = claimById.get(Number(button.dataset.copy));
@@ -553,7 +560,11 @@
       return `<article class="claim">
         <span class="chip ${escapeHtml(claim.status)}">${escapeHtml(label)}</span>
         <p><strong>${escapeHtml(claim.normalized)}</strong></p>
-        <div class="actions"><button type="button" class="ghost" data-copy="${claim.id}">Copiar resposta</button></div>
+        <div class="actions">
+          <button type="button" class="ghost" data-copy="${claim.id}">Copiar resposta</button>
+          <button type="button" class="ghost" data-card="feed" data-id="${claim.id}">Imagem</button>
+          <button type="button" class="ghost" data-card="stories" data-id="${claim.id}">Stories</button>
+        </div>
         <p class="meta">${escapeHtml(claim.quote)}</p>
         <p>${escapeHtml(claim.summary || "")}</p>
         ${claim.missing ? `<p class="meta">${escapeHtml(claim.missing)}</p>` : ""}
