@@ -51,7 +51,7 @@
       padding: 10px 12px;
     }
     input, select { min-width: 0; }
-    #fonte, #gravar { width: 220px; flex: 0 0 220px; }
+    #fonte, #gravar { flex: 1 1 240px; min-width: 200px; max-width: 340px; }
     #url { flex: 1 1 280px; min-width: 220px; }
     textarea { min-height: 140px; width: 100%; resize: vertical; }
     button {
@@ -134,7 +134,7 @@
     </form>
     <div id="app" hidden>
       <aside id="saved" class="saved"></aside>
-      <p class="lead">Ouça um link e leia o que foi dito. Para checar uma frase e copiar a resposta, use Checar frase. O placar fica separado.</p>
+      <p class="lead">Ouça um link e leia o que foi dito. Para checar uma frase e copiar a resposta, use Checar. O placar fica separado.</p>
       <form id="controls" class="bar">
         <select id="fonte">
           <option value="bandnews_sp">BandNews FM SP</option>
