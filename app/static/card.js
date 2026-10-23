@@ -102,16 +102,20 @@ const MentiroCard = (() => {
       });
 
     const source = (claim.sources || []).find((item) => item && item.url);
-    const foot = H - (story ? 160 : 96);
+    const foot = H - (story ? 220 : 150);
     ctx.fillStyle = "#161616";
     ctx.fillRect(pad, foot - 24, W - pad * 2, 3);
     ctx.font = "700 28px Literata, serif";
     const kind = source && source.kind ? `${source.kind} · ` : "";
-    const sourceLine = source ? `${kind}${String(source.title || source.url)}`.slice(0, 72) : "Sem página https";
-    ctx.fillText(sourceLine, pad, foot);
+    const sourceText = source ? `${kind}${source.title || source.url}` : "Sem página https";
+    wrap(ctx, sourceText, W - pad * 2).slice(0, 2).forEach((line, index) => {
+      ctx.fillText(line, pad, foot + index * 36);
+    });
     if (claim.correction) {
       ctx.font = "500 26px Literata, serif";
-      ctx.fillText(`Correção: ${String(claim.correction).slice(0, 90)}`, pad, foot + 42);
+      wrap(ctx, `Correção: ${claim.correction}`, W - pad * 2).slice(0, 2).forEach((line, index) => {
+        ctx.fillText(line, pad, foot + 84 + index * 34);
+      });
     }
 
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
