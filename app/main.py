@@ -26,6 +26,7 @@ from app.db import (
     claim_dict,
     init_db,
     mentira_percent,
+    placar_resumo,
     ping,
     session,
     store_verdict,
@@ -42,7 +43,7 @@ from app.listener import (
 )
 from app import ie_mcp
 from app.settings import settings
-from app.factcheck import RESOLVED_STATUSES
+from app.factcheck import CLOSED, RESOLVED_STATUSES
 from app.transcript import group_turns
 
 sessions: set[str] = set()
@@ -581,6 +582,18 @@ def placar(slug: str, request: Request) -> dict:
                 )
             )
             shown = [claim_dict(row) for row in rows]
+            mosaic = [
+                status
+                for status in db.scalars(
+                    select(Claim.status)
+                    .where(
+                        Claim.debate_id == debate.id,
+                        Claim.speaker == speaker,
+                        Claim.status.in_(CLOSED),
+                    )
+                    .order_by(Claim.id.asc())
+                )
+            ]
             cards.append(
                 {
                     "speaker": speaker,
@@ -588,6 +601,8 @@ def placar(slug: str, request: Request) -> dict:
                     "counts": counts,
                     "base": sum(counts[status] for status in SCORE_BASE),
                     "mentira_percent": mentira_percent(counts),
+                    "resumo": placar_resumo(counts),
+                    "mosaico": mosaic,
                     "claims": shown,
                 }
             )
@@ -610,6 +625,11 @@ def index() -> FileResponse:
 @app.get("/dashboard")
 def dashboard() -> FileResponse:
     return FileResponse(STATIC / "dashboard.html")
+
+
+@app.get("/placar-2")
+def placar_2() -> FileResponse:
+    return FileResponse(STATIC / "placar2.html")
 
 
 @app.get("/checar")

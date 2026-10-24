@@ -163,6 +163,33 @@ def mentira_percent(counts: dict) -> float | None:
     return round(100 * int(counts.get("contradito") or 0) / base, 1)
 
 
+def placar_resumo(counts: dict) -> dict:
+    """Participação de falso ou distorcido entre os carimbos fechados.
+
+    Promessa e carimbo em aberto ficam de fora do percentual.
+    """
+    from app.factcheck import CLOSED, OPEN
+
+    closed = {key: int(counts.get(key) or 0) for key in CLOSED}
+    classified = sum(closed.values())
+    false_n = closed["contradito"] + closed["distorcido"]
+    percent = None if classified <= 0 else int(false_n * 100 / classified + 0.5)
+    return {
+        "verdadeiras": closed["sustentado"],
+        "ressalva": closed["sustentado_ressalva"],
+        "parcial": closed["nao_e_bem_assim"],
+        "exageradas": closed["exagerado"],
+        "sem_provas": closed["sem_prova"],
+        "distorcidas": closed["distorcido"],
+        "falsas": closed["contradito"],
+        "falsas_ou_distorcidas": false_n,
+        "classificadas": classified,
+        "sem_veredito": sum(int(counts.get(key) or 0) for key in OPEN),
+        "promessas": int(counts.get("promessa") or 0),
+        "percentual": percent,
+    }
+
+
 def session():
     if Session is None:
         raise RuntimeError("banco ainda não iniciado")

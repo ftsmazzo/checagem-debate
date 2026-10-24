@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0c0c0c">
+  <title>Mentirômetro · Placar 2</title>
+  <link rel="icon" type="image/png" href="/static/logo-ie-icon.png">
+  <link rel="stylesheet" href="/static/shell.css">
+  <style>
+    main { width: min(1180px, calc(100% - 28px)); margin: 0 auto; padding: 18px 0 56px; }
+    .bar { display: flex; gap: 8px; align-items: center; margin: 0 0 14px; flex-wrap: wrap; }
+    input, select, button { font: inherit; border: 1px solid var(--ie-line); background: var(--ie-bg-soft); color: var(--paper); caret-color: var(--coral); padding: 10px 12px; }
+    button, .back {
+      background: var(--coral); color: var(--night); border-color: var(--coral);
+      font-family: "Archivo Black", sans-serif; cursor: pointer; text-decoration: none;
+      display: inline-flex; align-items: center; min-height: 42px;
+    }
+    button:hover, .back:hover { background: var(--ie-coral-deep); }
+    .back { padding: 0 12px; font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase; }
+    select { min-width: min(100%, 280px); }
+    .note { color: var(--ie-muted); font-size: 0.92rem; margin: 0 0 14px; }
+    .error { color: var(--ie-danger); min-height: 1.2em; }
+    .board { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .col { background: #141416; padding: 26px 20px 16px; min-width: 0; }
+    .col h2 {
+      margin: 0;
+      font-family: "Archivo Black", sans-serif;
+      font-size: clamp(2.5rem, 4.6vw, 3.5rem);
+      line-height: 0.86;
+      letter-spacing: -0.03em;
+      text-transform: uppercase;
+      min-height: calc(2 * 0.86em);
+    }
+    .party { margin: 8px 0 0; color: var(--ie-muted); }
+    .meter { display: flex; gap: 16px; align-items: center; margin-top: 18px; }
+    .donut {
+      width: 148px; height: 148px; border-radius: 50%;
+      display: grid; place-items: center; flex: none;
+    }
+    .hole {
+      width: 108px; height: 108px; border-radius: 50%; background: #141416;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 8px;
+    }
+    .hole strong { font-family: "Archivo Black", sans-serif; font-size: 1.7rem; line-height: 1; }
+    .hole span {
+      margin-top: 4px; max-width: 9.2ch;
+      font-family: "Archivo Black", sans-serif; font-size: 0.58rem;
+      letter-spacing: 0.04em; text-transform: uppercase; line-height: 1.15; color: var(--ie-ink-soft);
+    }
+    .legend { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; flex: 1; min-width: 0; }
+    .legend li { display: flex; gap: 8px; align-items: flex-start; line-height: 1.25; min-width: 0; }
+    .legend li.wide { grid-column: 1 / -1; }
+    .legend i { width: 10px; height: 10px; margin-top: 5px; flex: none; }
+    .legend b { font-family: "Archivo Black", sans-serif; font-weight: 400; }
+    .tally { margin: 14px 0 0; color: var(--ie-ink-soft); }
+    .shot { display: grid; grid-template-columns: minmax(150px, 0.82fr) 1.2fr; margin-top: 16px; background: #0c0c0c; min-height: 268px; }
+    .col.lula .shot { grid-template-columns: 1.2fr minmax(150px, 0.82fr); }
+    .photo { position: relative; min-height: 268px; }
+    .photo img {
+      position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+      filter: grayscale(1) contrast(1.08);
+    }
+    .col.flavio .photo img { object-position: 50% 12%; }
+    .col.lula .photo img { object-position: 50% 8%; }
+    .photo::after {
+      content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 42%;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.78), transparent); z-index: 0;
+    }
+    .mosaic { position: absolute; left: 8px; right: 8px; bottom: 8px; display: flex; flex-wrap: wrap; gap: 3px; z-index: 1; }
+    .mosaic i { width: 11px; height: 11px; display: block; flex: none; }
+    .mosaic.dense i { width: 8px; height: 8px; }
+    .mosaic.tiny i { width: 6px; height: 6px; }
+    .vote { align-self: end; padding: 16px 14px 18px; }
+    .turn {
+      font-family: "Archivo Black", sans-serif; font-size: 0.68rem; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--ie-muted);
+    }
+    .vote strong { display: block; margin: 4px 0; font-family: "Archivo Black", sans-serif; font-size: 1.85rem; line-height: 1; }
+    .vote p { margin: 0; color: var(--ie-ink-soft); font-size: 0.86rem; line-height: 1.35; }
+    .caption { margin: 16px 0 0; max-width: 78ch; }
+    .credit { margin: 8px 0 0; color: var(--ie-muted); font-size: 0.82rem; }
+    #zap { margin-top: 16px; }
+    @media (max-width: 860px) {
+      .board, .shot, .col.lula .shot { grid-template-columns: 1fr; }
+      .meter { align-items: flex-start; }
+      .photo { min-height: 220px; }
+      .vote { padding-top: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/"><img src="/static/logo-ie-mark.png" alt="Inteligência Eleitoral"><strong>Mentirômetro</strong></a>
+    <nav class="nav" aria-label="Seções">
+      <a href="/">Ao vivo</a>
+      <a href="/leitura">Leitura</a>
+      <a href="/checar">Checar</a>
+      <a href="/dashboard">Placar</a>
+      <a class="here" href="/placar-2">Placar 2</a>
+      <a href="/metodo">Método</a>
+    </nav>
+  </header>
+  <main>
+    <form id="login" class="bar" hidden>
+      <input id="password" type="password" placeholder="Senha do painel" required>
+      <button type="submit">Entrar</button>
+    </form>
+    <div id="app">
+      <div class="bar">
+        <select id="debate" aria-label="Debate"></select>
+        <button id="create" type="button">Criar o próximo debate</button>
+        <a class="back" href="/leitura">Ver as frases</a>
+      </div>
+      <p class="note">O anel conta falso e distorcido entre os carimbos fechados. Promessa fica de fora.</p>
+      <p id="error" class="error"></p>
+      <div id="board" class="board"></div>
+      <p id="caption" class="caption"></p>
+      <p class="credit">Retratos: Geraldo Magela/Agência Senado (CC BY-SA 4.0) e Ricardo Stuckert/PR (CC BY 2.0). 1º turno: TSE, 4 de outubro de 2026.</p>
+      <button id="zap" type="button">Imagem para o WhatsApp</button>
+    </div>
+  </main>
+  <script src="/static/placar.js"></script>
+  <script>
+    const login = document.querySelector("#login");
+    const app = document.querySelector("#app");
+    const errorBox = document.querySelector("#error");
+    const board = document.querySelector("#board");
+    const caption = document.querySelector("#caption");
+    let current = null;
+
+    async function api(path, options) {
+      const response = await fetch(path, { credentials: "same-origin", ...options });
+      const data = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        app.hidden = true;
+        login.hidden = false;
+        throw new Error("faça login");
+      }
+      if (!response.ok) throw new Error(data.detail || "falha na consulta");
+      return data;
+    }
+
+    function escapeHtml(value) {
+      return String(value || "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+    }
+
+    async function load(slug) {
+      const data = await api("/api/debates/" + encodeURIComponent(slug) + "/placar");
+      current = data;
+      Placar.mount(board, caption, data);
+    }
+
+    async function refreshList(prefer) {
+      const data = await api("/api/debates");
+      const select = document.querySelector("#debate");
+      select.innerHTML = (data.debates || []).map((row) => `<option value="${escapeHtml(row.slug)}">${escapeHtml(row.title)}${row.active ? " · ativo" : ""}</option>`).join("");
+      const chosen = prefer || (data.debates || []).find((row) => row.active)?.slug || (data.debates || [])[0]?.slug;
+      if (chosen) {
+        select.value = chosen;
+        await load(chosen);
+      }
+    }
+
+    login.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      errorBox.textContent = "";
+      try {
+        await api("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: document.querySelector("#password").value })
+        });
+        login.hidden = true;
+        app.hidden = false;
+        await refreshList();
+      } catch (error) {
+        errorBox.textContent = error.message;
+      }
+    });
+
+    document.querySelector("#debate").addEventListener("change", async (event) => {
+      errorBox.textContent = "";
+      try { await load(event.target.value); } catch (error) { errorBox.textContent = error.message; }
+    });
+
+    document.querySelector("#create").addEventListener("click", async () => {
+      const title = window.prompt("Nome do próximo debate. Band — 18/10 continua na lista.");
+      if (!title || title.trim().length < 3) return;
+      errorBox.textContent = "";
+      try {
+        const created = await api("/api/debates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: title.trim() })
+        });
+        await refreshList(created.slug);
+      } catch (error) {
+        errorBox.textContent = error.message;
+      }
+    });
+
+    document.querySelector("#zap").addEventListener("click", async () => {
+      if (!current) return;
+      const button = document.querySelector("#zap");
+      button.disabled = true;
+      errorBox.textContent = "";
+      try {
+        const result = await Placar.share(current);
+        if (result === "saved") errorBox.textContent = "A imagem foi salva neste aparelho.";
+      } catch (error) {
+        if (error && error.name !== "AbortError") errorBox.textContent = "Não foi possível gerar a imagem.";
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    api("/api/debates").then(async () => {
+      login.hidden = true;
+      app.hidden = false;
+      await refreshList();
+    }).catch((error) => {
+      errorBox.textContent = error.message || "falha na consulta";
+    });
+  </script>
+</body>
+</html>

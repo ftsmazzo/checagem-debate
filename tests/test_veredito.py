@@ -1,6 +1,6 @@
 import unittest
 
-from app.db import mentira_percent
+from app.db import mentira_percent, placar_resumo
 from app.factcheck import (
     attach_citations,
     citation_sources,
@@ -13,6 +13,27 @@ from app.listener import explain_audio_error, resolve_stream, youtube_cookie_tex
 
 
 class VerdictTests(unittest.TestCase):
+    def test_placar_falso_ou_distorcido(self):
+        flavio = placar_resumo(
+            {
+                "sustentado": 39,
+                "exagerado": 2,
+                "contradito": 8,
+                "distorcido": 3,
+                "sem_evidencia": 3,
+                "promessa": 1,
+            }
+        )
+        self.assertEqual(flavio["falsas_ou_distorcidas"], 11)
+        self.assertEqual(flavio["classificadas"], 52)
+        self.assertEqual(flavio["percentual"], 21)
+        self.assertEqual(flavio["sem_veredito"], 3)
+        self.assertEqual(flavio["promessas"], 1)
+        lula = placar_resumo({"sustentado": 16, "exagerado": 2, "contradito": 13})
+        self.assertEqual(lula["percentual"], 42)
+        self.assertIsNone(placar_resumo({})["percentual"])
+        self.assertEqual(placar_resumo({"promessa": 4})["classificadas"], 0)
+
     def test_percentual_de_mentira(self):
         self.assertIsNone(mentira_percent({}))
         self.assertIsNone(mentira_percent({"sem_evidencia": 4}))
